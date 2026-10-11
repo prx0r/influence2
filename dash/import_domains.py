@@ -19,7 +19,8 @@ EXTRA = {"drawdle": ("Drawdle", "drawdle.dev"), "feedify": ("Feedify", "feedify.
          "breadup": ("Breadup", "breadup.dev")}
 
 
-def import_domain(slug, name, domain, done_keys=(), update=False, db_path=DB_PATH):
+def import_domain(slug, name, domain, done_keys=(), update=False, db_path=DB_PATH,
+                  display_name="", email="", phone="", website="", social_platforms=None):
     eng = create_engine(f"sqlite:///{db_path}")
     M.Base.metadata.create_all(bind=eng)
     s = sessionmaker(bind=eng)()
@@ -30,12 +31,19 @@ def import_domain(slug, name, domain, done_keys=(), update=False, db_path=DB_PAT
             return False
         done = {k: True for k in done_keys}
         done.setdefault("name", True)
-        passport = influencer_passport(slug.replace("-", ""), domain, done)
+        passport = influencer_passport(
+            slug.replace("-", ""), domain, done,
+            display_name=display_name or name,
+            email=email, phone=phone, website=website,
+            social_platforms=social_platforms,
+        )
         if p is None:
             p = M.Project(slug=slug, name=name, domain=domain, passport=passport)
             s.add(p)
         else:
             p.passport = passport
+            if display_name:
+                p.name = name or p.name
         s.commit()
         out = reconcile_project(s, p)
         print(f"OK {slug}: {out['counts']} progress={out['progress']}%")

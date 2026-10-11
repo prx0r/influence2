@@ -38,6 +38,17 @@ def brand_signoff(brand_slug: str = "oddhobb") -> str:
 # Full spec: oddhobbies/etsy-pack/IMAGES.md (deconstructed from listing
 # 4584650499 "Your Own Brick Figure"). 5 essential images, fixed order.
 # Slots 6-10 reserved for future expansion; Etsy allows 10.
+#
+# Canonical 5+1 formulas live in pipeline/compilers/images.py (FORMULAS +
+# etsy_checklist). IMAGE_SLOTS below is the legacy 10-slot vocabulary,
+# kept for backward compat. New code should use images.FORMULAS.
+try:
+    from compilers.images import FORMULAS as ETSY_5PLUS1, etsy_checklist
+except ImportError:
+    try:
+        from pipeline.compilers.images import FORMULAS as ETSY_5PLUS1, etsy_checklist
+    except ImportError:
+        ETSY_5PLUS1, etsy_checklist = {}, None
 IMAGE_SLOTS = [
     {"slot": 1, "role": "hero", "required": True,
      "desc": "Main product image — clean surface, warm light, fills frame"},

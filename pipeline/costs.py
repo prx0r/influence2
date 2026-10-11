@@ -47,6 +47,9 @@ COSTS_USD: dict[str, float] = {
     "sleepdraw.breathe_fal": 0.075,   # fal i2v midpoint $0.05-0.10
     "sleepdraw.bed_fal": 0.035,       # fal ACE-Step midpoint
     "sleepdraw.film_10min": 0.70,     # all-in 10-min film
+    # Cloudflare free tier (default image provider — swap to fal later)
+    "cf.workers_ai_img": 0.0,    # Workers AI text-to-image, free allocation
+    "cf.r2_ship": 0.0,           # R2 storage/bandwidth, negligible
     # Free (still logged)
     "etsy.listing_update": 0.0,
     "etsy.listing_read": 0.0,

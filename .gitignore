@@ -33,6 +33,7 @@ dash/decisions.db
 dash/receipts.jsonl
 dash/spend.db
 runs/*.jsonl
+pipeline/runs/
 stevejobless/.env
 stevejobless/.env
 stevejobless/.env.example

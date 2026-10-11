@@ -1,21 +1,28 @@
 #!/bin/bash
-# Serve influence dash on loopback. Token persisted in dash/.token (0600, gitignored).
-# With --tunnel, also opens a Cloudflare quick tunnel (requires DASH_TOKEN, always set here).
+# Serve influence dash on loopback. Optional token: DASH_TOKEN or dash/.token.
+# Default (no token) = open — correct when access is only via the CF tunnel.
 set -e
 cd "$(dirname "$0")"
 TOKFILE=.token
-if [ ! -f "$TOKFILE" ]; then
-  python3 -c "import secrets; print(secrets.token_urlsafe(24))" > "$TOKFILE"
-  chmod 600 "$TOKFILE"
+if [ -n "${DASH_TOKEN:-}" ]; then
+  :
+elif [ -f "$TOKFILE" ] && [ "${DASH_REQUIRE_TOKEN:-0}" = "1" ]; then
+  export DASH_TOKEN="$(cat "$TOKFILE")"
+else
+  export DASH_TOKEN=""
 fi
-export DASH_TOKEN="$(cat "$TOKFILE")"
 export DASH_PORT="${DASH_PORT:-8793}"
 export LIVE="${LIVE:-0}"
 export DASH_DB="${DASH_DB:-$PWD/influence.db}"
 export DASH_JOURNAL="${DASH_JOURNAL:-$PWD/decisions.db}"
 export PATH="/home/ubuntu/influence/.venv/bin:$PATH"
-echo "dash token: $DASH_TOKEN"
-echo "open: http://127.0.0.1:$DASH_PORT/?token=$DASH_TOKEN"
+if [ -n "$DASH_TOKEN" ]; then
+  echo "dash token gate ON"
+  echo "open: http://127.0.0.1:$DASH_PORT/?token=$DASH_TOKEN"
+else
+  echo "dash open (tunnel is the perimeter)"
+  echo "open: http://127.0.0.1:$DASH_PORT/"
+fi
 if [ "$1" == "--tunnel" ]; then
   nohup python3 server.py > dash.log 2>&1 &
   echo $! > .dash.pid

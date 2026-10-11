@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Long Haul — Cabin Image Comparison</title>
+<style>
+body { font-family: system-ui; background: #0d1117; color: #e6e6e6; margin: 0; padding: 20px; }
+h1 { color: #58a6ff; }
+h2 { color: #8b949e; margin-top: 30px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+.card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px; }
+.card img { width: 100%; border-radius: 4px; }
+.card p { font-size: 12px; color: #8b949e; margin: 8px 0 0; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; }
+.flux { background: #1f3a1f; color: #4ec9b0; }
+.real { background: #3a1f1f; color: #f44747; }
+</style>
+</head>
+<body>
+<h1>✈️ Long Haul — Cabin Image Options</h1>
+<p>Which cabin image works best for the sleep video? Compare Flux AI-generated vs real Pexels photos.</p>
+
+<h2>Flux AI-Generated</h2>
+<div class="grid">
+  <div class="card">
+    <img src="ba_forward.png" alt="Forward view">
+    <p><span class="badge flux">FLUX</span> Forward view — facing seat-back screen</p>
+  </div>
+  <div class="card">
+    <img src="ba_window.png" alt="Window view">
+    <p><span class="badge flux">FLUX</span> Window view — stars and clouds</p>
+  </div>
+  <div class="card">
+    <img src="ba_aisle.png" alt="Aisle view">
+    <p><span class="badge flux">FLUX</span> Aisle view — rows of seats</p>
+  </div>
+  <div class="card">
+    <img src="ba_business_cabin.png" alt="Business cabin">
+    <p><span class="badge flux">FLUX</span> Business cabin — original test</p>
+  </div>
+</div>
+
+<h2>Real Pexels Photos (CC0)</h2>
+<div class="grid">
+  <div class="card">
+    <img src="real_cabin_1.jpg" alt="Real cabin 1">
+    <p><span class="badge real">REAL</span> Seats + screens, passengers</p>
+  </div>
+  <div class="card">
+    <img src="real_cabin_2.jpg" alt="Real cabin 2">
+    <p><span class="badge real">REAL</span> Blue seats, overhead compartments</p>
+  </div>
+  <div class="card">
+    <img src="real_cabin_3.jpg" alt="Real cabin 3">
+    <p><span class="badge real">REAL</span> Cabin with screens visible</p>
+  </div>
+</div>
+
+<h2>What to look for</h2>
+<ul>
+<li><strong>Seat-back screen visible</strong> — where the flight map goes</li>
+<li><strong>Forward-facing</strong> — you're looking at the screen ahead of you</li>
+<li><strong>Dim/warm lighting</strong> — nighttime flight feel</li>
+<li><strong>Not uncanny</strong> — real photos usually look better than AI for this</li>
+</ul>
+</body>
+</html>

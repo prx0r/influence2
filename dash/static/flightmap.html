@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BA117 LHR → JFK Flight Map</title>
+    <style>
+        body { margin: 0; background: #1a1a2e; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .screen { width: 480px; height: 320px; background: #0d1117; border-radius: 8px; position: relative; overflow: hidden; border: 2px solid #333; }
+        .map { width: 100%; height: 100%; position: relative; }
+        .route { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        .plane { position: absolute; font-size: 20px; transition: all 1s linear; }
+        .info { position: absolute; bottom: 10px; left: 10px; color: #4a9eff; font-family: monospace; font-size: 11px; }
+        .altitude { position: absolute; top: 10px; right: 10px; color: #4a9eff; font-family: monospace; font-size: 11px; }
+        .time { position: absolute; top: 10px; left: 10px; color: #4a9eff; font-family: monospace; font-size: 11px; }
+        .ocean { fill: #0a1628; }
+        .land { fill: #1a3a1a; opacity: 0.3; }
+    </style>
+</head>
+<body>
+    <div class="screen">
+        <div class="map">
+            <svg viewBox="0 0 480 320" class="route">
+                <!-- Simplified Atlantic route -->
+                <ellipse cx="240" cy="160" rx="200" ry="120" fill="none" stroke="#2a4a6a" stroke-width="1" stroke-dasharray="4,4"/>
+                <path d="M 400,100 Q 300,80 200,100 Q 100,120 40,180" fill="none" stroke="#4a9eff" stroke-width="2"/>
+                <!-- Plane icon -->
+                <g id="plane" transform="translate(350, 95) rotate(-20)">
+                    <polygon points="0,-8 12,0 0,8 -2,3 -2,-3" fill="#4a9eff"/>
+                </g>
+                <!-- Airport markers -->
+                <circle cx="395" cy="95" r="4" fill="#ff6b6b" opacity="0.8"/>
+                <text x="400" y="90" fill="#ff6b6b" font-size="8" font-family="monospace">LHR</text>
+                <circle cx="45" cy="185" r="4" fill="#4aff4a" opacity="0.8"/>
+                <text x="50" y="180" fill="#4aff4a" font-size="8" font-family="monospace">JFK</text>
+            </svg>
+        </div>
+        <div class="info">BA117 · Club World · Boeing 777-300ER</div>
+        <div class="altitude">FL350 · 490 kts</div>
+        <div class="time" id="clock">21:00 UTC</div>
+    </div>
+    <script>
+        // Animate plane along route
+        const plane = document.getElementById('plane');
+        const path = document.querySelector('path');
+        let progress = 0;
+        
+        function animate() {
+            progress += 0.0003; // Slow movement
+            if (progress > 1) progress = 0;
+            
+            const point = path.getPointAtLength(progress * path.getTotalLength());
+            plane.setAttribute('transform', `translate(${point.x}, ${point.y}) rotate(-20)`);
+            
+            // Update clock
+            const hours = Math.floor(21 + progress * 7.75);
+            const mins = Math.floor((progress * 7.75 * 60) % 60);
+            document.getElementById('clock').textContent = 
+                `${String(hours % 24).padStart(2,'0')}:${String(mins).padStart(2,'0')} UTC`;
+            
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+</body>
+</html>

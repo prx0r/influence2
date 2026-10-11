@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Long Haul — Sleep Videos</title>
+<style>
+body { font-family: system-ui; background: #0d1117; color: #e6e6e6; margin: 0; padding: 20px; }
+h1 { color: #58a6ff; }
+.video { max-width: 800px; margin: 20px 0; }
+video { width: 100%; border-radius: 8px; }
+a { color: #58a6ff; }
+.card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; margin: 12px 0; }
+</style>
+</head>
+<body>
+<h1>✈️ Long Haul — Sleep Videos</h1>
+<p>Real flights. Real routes. Captain announcements. Cabin ambiance. Fall asleep somewhere over the Atlantic.</p>
+
+<div class="card">
+<h3>Preview: BA117 LHR → JFK (21 seconds)</h3>
+<div class="video">
+<video controls>
+  <source src="preview_lofi.mp4" type="video/mp4">
+</video>
+</div>
+<p>Depth-aware parallax (head movement) + flight map overlay + cabin ambiance + light dimming.</p>
+</div>
+
+<div class="card">
+<h3>Flight Map Preview</h3>
+<iframe src="flightmap.html" width="100%" height="400" style="border:none;border-radius:8px;"></iframe>
+<p>Animated flight map showing BA117 London to New York.</p>
+</div>
+
+<div class="card">
+<h3>Cabin Views (Flux)</h3>
+<div style="display:flex;gap:8px;flex-wrap:wrap;">
+<img src="ba_forward.png" style="max-width:30%;border-radius:8px;">
+<img src="ba_window.png" style="max-width:30%;border-radius:8px;">
+<img src="ba_aisle.png" style="max-width:30%;border-radius:8px;">
+</div>
+<p>Forward view, window view, aisle view.</p>
+</div>
+
+<div class="card">
+<h3>Coming Soon</h3>
+<ul>
+<li>Full 8-hour BA117 video</li>
+<li>Ryanair economy flights</li>
+<li>Japan Airlines first class</li>
+<li>Emirates ultra-long-haul</li>
+</ul>
+</div>
+</body>
+</html>

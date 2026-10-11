@@ -44,6 +44,9 @@ READONLY_TOOLS = [
     "product.list",
     "product.get",
     "receipt.get",
+    "pack.compile",
+    "etsy.listing",
+    "task.status",
 ]
 
 TOOL_SCHEMAS = [
@@ -95,6 +98,17 @@ TOOL_SCHEMAS = [
     {"type": "function", "function": {
         "name": "receipt.get", "description": "Receipt by id + verify",
         "parameters": {"type": "object", "properties": {"id": {"type": "string"}}, "required": ["id"]}}},
+    {"type": "function", "function": {
+        "name": "pack.compile", "description": "Dry-run compile one pack for a channel (read-only, zero writes, never pushes)",
+        "parameters": {"type": "object", "properties": {
+            "sku": {"type": "string"}, "brand": {"type": "string"}, "channel": {"type": "string"}}, "required": ["sku"]}}},
+    {"type": "function", "function": {
+        "name": "etsy.listing", "description": "Preview 'add this product to Etsy': template + payload + images + coherence (read-only, never pushes)",
+        "parameters": {"type": "object", "properties": {
+            "store": {"type": "string"}, "sku": {"type": "string"}}, "required": ["sku"]}}},
+    {"type": "function", "function": {
+        "name": "task.status", "description": "Poll effect approval task state + payload hash + receipt (read-only)",
+        "parameters": {"type": "object", "properties": {"task_id": {"type": "integer"}}, "required": ["task_id"]}}},
 ]
 
 DELEGATE_SCHEMA = {"type": "function", "function": {

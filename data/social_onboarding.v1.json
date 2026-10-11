@@ -1,0 +1,202 @@
+{
+  "schema": "influence.social_onboarding.v1",
+  "version": 1,
+  "updated": "2026-10-06",
+  "description": "Objective social claim kit registry. Parameterized by brand handle/email/domain/phone. Any passport builder, dash guide card, MCP client, or agent reads this file — never a per-brand wiki.",
+  "defaults": {
+    "display_name": "{{handle}}",
+    "email": "hello@{{domain}}",
+    "website": "https://{{domain}}",
+    "phone": "",
+    "bio_primary": "{{display_name}} — odd little gifts for the things they're obsessed with. From $7.99 · {{domain}}",
+    "bio_short": "Odd little gifts for the obsessed. From $7.99 · {{domain}}",
+    "bio_x": "Personalised hobby + stocking filler gifts from $7.99. Your thing. In brick. {{domain}}",
+    "bio_youtube": "{{display_name}} — personalised hobby gifts. {{domain}}",
+    "category": "Gift shop",
+    "keywords": ["Personalised gifts", "3D printed gifts", "Game night", "Christmas gifts"],
+    "otp_app": "https://phone.agentcom.org/app",
+    "do_not": [
+      "Use a personal phone or personal email for brand accounts",
+      "Auto-publish — publish gates stay human_confirm until QP receipts exist",
+      "Invent a fallback handle if the exact one is taken — screenshot + report",
+      "Post product links before Wave 1 assets exist"
+    ],
+    "after_claim": [
+      "Record final handle/URL per platform",
+      "Flip bgraph registry branch status ready_to_claim → claimed",
+      "Flip store.json *_status to claimed",
+      "Later: one OAuth click per platform (Postiz) — still human_confirm"
+    ]
+  },
+  "claim_order": ["tiktok", "youtube", "x", "instagram", "pinterest"],
+  "platforms": {
+    "tiktok": {
+      "label": "TikTok",
+      "resource_key": "claim-tt",
+      "account_type": "Creator / Business",
+      "signup_url": "https://www.tiktok.com/signup",
+      "handle_rule": "2–24 chars, lowercase letters/numbers/./_",
+      "auth": ["phone", "email"],
+      "bio_variant": "bio_short",
+      "website_required": true,
+      "priority": 80,
+      "estimate_seconds": 300,
+      "steps": [
+        "Open the signup URL",
+        "Sign up with the brand phone OTP (or brand email). Read OTPs at {{otp_app}} → SMS tab",
+        "Search and claim @{{handle}}",
+        "If the UI shows taken: stop, screenshot, report — do not grab a silent variant",
+        "Switch to {{account_type}} account",
+        "Paste bio: {{bio_short}}",
+        "Set website {{website}} and email {{email}}",
+        "Profile photo optional if no clean brand asset yet",
+        "Do not post yet — claim + bio + link only",
+        "Reply DONE when bio is live"
+      ],
+      "pin_post": null,
+      "first_content_idea": "Upload pet/product photo → personalisation reveal, no hard sell",
+      "post_claim": ["handle claimed", "bio live", "website set", "account type correct"]
+    },
+    "youtube": {
+      "label": "YouTube",
+      "resource_key": "claim-yt",
+      "account_type": "Brand Account",
+      "signup_url": "https://www.youtube.com/account",
+      "handle_rule": "3–30 chars",
+      "auth": ["google"],
+      "bio_variant": "bio_youtube",
+      "website_required": true,
+      "priority": 78,
+      "estimate_seconds": 420,
+      "steps": [
+        "Open YouTube account settings",
+        "Sign in with a Google account you control for the brand (prefer a clean brand Google — do not casually convert a personal channel)",
+        "Create a Brand Account named {{display_name}} (not personal)",
+        "Set channel handle @{{handle}}",
+        "About: {{bio_youtube}}",
+        "Banner: solid cream is fine if no brand kit asset",
+        "Channel link: {{website}}",
+        "Keep uploads unlisted until human flips public",
+        "Reply DONE + channel URL"
+      ],
+      "pin_post": null,
+      "first_content_idea": "Unlisted Shorts = vertical product reveals when assets exist",
+      "post_claim": ["Brand Account created", "handle @{{handle}}", "link set", "unlisted uploads only"]
+    },
+    "x": {
+      "label": "X",
+      "resource_key": "claim-x",
+      "account_type": "Professional / personal brand",
+      "signup_url": "https://x.com/i/flow/signup",
+      "handle_rule": "1–15 chars, letters/numbers/_ only",
+      "auth": ["phone", "email"],
+      "bio_variant": "bio_x",
+      "website_required": true,
+      "priority": 76,
+      "estimate_seconds": 240,
+      "steps": [
+        "Open X signup",
+        "Sign up with brand phone OTP + {{email}}",
+        "Claim @{{handle}} (fits 1–15 rule)",
+        "Paste bio: {{bio_x}}",
+        "Website: {{website}}",
+        "Pin the pin_post text below",
+        "No brand marks in replies — stay warm/odd",
+        "Reply DONE when pinned"
+      ],
+      "pin_post": "{{display_name}} — odd little gifts for the things they're obsessed with. Stocking fillers from $7.99 → {{website}}",
+      "first_content_idea": "Pin Q4 headline + site; replies stay human",
+      "post_claim": ["handle claimed", "bio live", "pin live", "website set"]
+    },
+    "instagram": {
+      "label": "Instagram",
+      "resource_key": "claim-ig",
+      "account_type": "Business (Gift shop)",
+      "signup_url": "https://www.instagram.com/accounts/emailsignup/",
+      "handle_rule": "1–30 chars",
+      "auth": ["phone", "email"],
+      "bio_variant": "bio_primary",
+      "website_required": true,
+      "priority": 70,
+      "estimate_seconds": 300,
+      "steps": [
+        "Open Instagram signup",
+        "Sign up with brand phone OTP or {{email}}",
+        "Claim @{{handle}}",
+        "If taken by a stranger: screenshot + report; archive variant only if explicitly decided",
+        "Switch to Business, category {{category}}",
+        "Bio: {{bio_primary}}",
+        "Site {{website}} · email {{email}}",
+        "First posts only when Wave 1 assets exist",
+        "Reply DONE when bio+site live"
+      ],
+      "pin_post": null,
+      "first_content_idea": "Wave 1 product heroes (vertical)",
+      "post_claim": ["handle claimed", "Business category", "bio+site live"]
+    },
+    "pinterest": {
+      "label": "Pinterest",
+      "resource_key": "claim-pin",
+      "account_type": "Business",
+      "signup_url": "https://business.pinterest.com/",
+      "handle_rule": "uniform brand handle",
+      "auth": ["email", "phone"],
+      "bio_variant": "bio_short",
+      "website_required": true,
+      "claim_domain": true,
+      "priority": 60,
+      "estimate_seconds": 300,
+      "steps": [
+        "Open Pinterest Business",
+        "Sign up with {{email}} (phone backup)",
+        "Claim @{{handle}}",
+        "Create boards named for shelves, not random",
+        "Claim website {{website}} for verification",
+        "Highest intent for Christmas gift search — boards first, pins after assets",
+        "Reply DONE when domain verified"
+      ],
+      "pin_post": null,
+      "first_content_idea": "Stocking Fillers · Game Night · Personalised Christmas boards",
+      "post_claim": ["business account", "boards created", "domain claimed"]
+    },
+    "github": {
+      "label": "GitHub",
+      "resource_key": "claim-gh",
+      "account_type": "Organization optional",
+      "signup_url": "https://github.com/signup",
+      "handle_rule": "alphanumeric + hyphens",
+      "auth": ["email"],
+      "bio_variant": "bio_short",
+      "website_required": false,
+      "optional": true,
+      "priority": 20,
+      "estimate_seconds": 180,
+      "steps": [
+        "Optional — only if shipping public repos or a profile matters",
+        "Sign up with {{email}}",
+        "Claim @{{handle}} if free",
+        "Profile link {{website}}"
+      ],
+      "pin_post": null,
+      "first_content_idea": null,
+      "post_claim": ["org or user claimed"]
+    }
+  },
+  "universal": {
+    "otp_dependency": "Social OTPs depend on brand phone inbound SMS. Prove with a TEST SMS first, then claim. If nothing arrives: Telnyx portal → number → Messaging profile must be attached.",
+    "claim_report_format": "Reply: <PLATFORM> DONE @{{handle}} <url optional>",
+    "passport_resource_pattern": {
+      "key": "claim-<platform>",
+      "kind": "static",
+      "label": "Claim <Platform>",
+      "desired": {
+        "executor": "HUMAN",
+        "human_title": "Claim @{{handle}} on <Platform>",
+        "instructions": "<rendered steps + bio + pin>",
+        "url": "<signup_url>",
+        "priority": "<platform priority>",
+        "kit": "<platform kit object for dash cards>"
+      }
+    }
+  }
+}

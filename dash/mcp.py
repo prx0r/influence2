@@ -1,5 +1,8 @@
-"""Influence MCP: dependency-graph flow as tools. Read-only; this surface can
-never spend, send, or mutate. Writes stay on REST behind the decide gate."""
+"""Influence MCP: dependency-graph flow as tools. Read-only by default; the only
+writes are draft rows (release.create) and the grant-gated image tools
+(images.generate/images.upload, fail closed without a verified grant +
+human approval). This surface can never spend, send, or mutate otherwise.
+Writes stay on REST behind the decide gate."""
 from __future__ import annotations
 
 import json
@@ -92,6 +95,24 @@ TOOLS = [
      "inputSchema": {"type": "object", "properties": {}}},
     {"name": "email.read", "description": "Read one email by message_id (meta + raw body from cmail)",
      "inputSchema": {"type": "object", "properties": {"message_id": {"type": "string"}}, "required": ["message_id"]}},
+    {"name": "images.plan", "description": "Etsy 5+1 image plan for a SKU: formulas + prompts preview + checklist (read-only, never generates)",
+     "inputSchema": {"type": "object", "properties": {"store": {"type": "string"}, "sku": {"type": "string"}, "provider": {"type": "string"}}, "required": ["sku"]}},
+    {"name": "images.generate", "description": "Generate slot images (dry-run preview by default; live needs approved grant, Cloudflare free)",
+     "inputSchema": {"type": "object", "properties": {"store": {"type": "string"}, "sku": {"type": "string"}, "slots": {"type": "array", "items": {"type": "integer"}}, "provider": {"type": "string"}, "live": {"type": "boolean"}, "grant": {"type": "object"}}, "required": ["sku"]}},
+    {"name": "images.upload", "description": "Upload images to Etsy ranks 1-5 (dry-run plan by default; live needs approved grant, human-gated)",
+     "inputSchema": {"type": "object", "properties": {"store": {"type": "string"}, "sku": {"type": "string"}, "items": {"type": "array", "items": {"type": "object"}}, "live": {"type": "boolean"}, "grant": {"type": "object"}, "campaign": {"type": "string"}}, "required": ["sku"]}},
+    {"name": "yt.analyze", "description": "Analyze a YouTube channel: transcripts, WPM, humor taxonomy, rhetoric fingerprint, title formula, schedule (read-only, cached, may take a minute)",
+     "inputSchema": {"type": "object", "properties": {"channel": {"type": "string"}, "limit": {"type": "integer"}}, "required": ["channel"]}},
+    {"name": "yt.list", "description": "List cached YouTube channel analyses (read-only)",
+     "inputSchema": {"type": "object", "properties": {}}},
+    {"name": "yt.get", "description": "Retrieve full cached YouTube analysis for a channel (read-only, never fetches)",
+     "inputSchema": {"type": "object", "properties": {"channel": {"type": "string"}}, "required": ["channel"]}},
+    {"name": "yt.compare", "description": "Side-by-side aggregates for cached channels (read-only, cached only — run yt.analyze first for missing ones)",
+     "inputSchema": {"type": "object", "properties": {"channels": {"type": "array", "items": {"type": "string"}}}, "required": ["channels"]}},
+    {"name": "character.profile", "description": "Character platform profile: identity slots + branch claim status (read-only)",
+     "inputSchema": {"type": "object", "properties": {"slug": {"type": "string"}}, "required": ["slug"]}},
+    {"name": "character.graph", "description": "Character git graph: seed, instances, edges, analytics sync state (read-only, never mutates)",
+     "inputSchema": {"type": "object", "properties": {"character_id": {"type": "string"}}, "required": ["character_id"]}},
 ]
 
 GRAPH = [
@@ -631,7 +652,66 @@ def handle(state: dict, method: str, params: dict) -> dict:
                                       str(args.get("sku") or ""))}
         except Exception as e:
             return {"error": str(e)[:250]}
-    if name in ("pack.list", "pack.compile", "release.create", "task.status", "campaign.list", "actions.list"):
+    if name in ("yt.analyze", "yt.list", "yt.get", "yt.compare"):
+        try:
+            import sys as _sys4
+            _sys4.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            from pipeline import yt_analytics as _yt
+            if name == "yt.analyze":
+                ch = str(args.get("channel") or "")
+                if not ch:
+                    return {"error": "channel required (URL or @handle)"}
+                try:
+                    limit = int(args.get("limit") or 10)
+                except Exception:
+                    limit = 10
+                out = _yt.analyze_channel(ch, max(1, min(limit, 50)))
+                agg = out.get("aggregate") or {}
+                return {"result": {"channel": out.get("channel"), "slug": _yt.slug_of(ch),
+                                   "aggregate": agg,
+                                   "video_ids": [v["id"] for v in out.get("videos", [])],
+                                   "failed": len(out.get("failed", []))}}
+            if name == "yt.list":
+                return {"result": _yt.list_analyses()}
+            if name == "yt.get":
+                d = _yt.load_analysis(_yt.slug_of(str(args.get("channel") or "")))
+                if not d:
+                    return {"error": "not cached — run yt.analyze first"}
+                return {"result": d}
+            return {"result": _yt.compare_channels(args.get("channels") or [])}
+        except Exception as e:
+            return {"error": str(e)[:250]}
+    if name in ("character.profile", "character.graph"):
+        try:
+            import sys as _sys5
+            _sys5.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            from pipeline import character as _ch
+            if name == "character.profile":
+                slug = str(args.get("slug") or "")
+                if not slug:
+                    return {"error": "slug required"}
+                try:
+                    return {"result": _ch.load_profile(slug)}
+                except FileNotFoundError as e:
+                    return {"error": str(e)[:200]}
+            cid = str(args.get("character_id") or "")
+            if not cid:
+                return {"error": "character_id required"}
+            try:
+                g = _ch.load_character(cid)
+            except FileNotFoundError as e:
+                return {"error": str(e)[:200]}
+            return {"result": {"character_id": g.get("character_id"), "name": g.get("name"),
+                               "status": g.get("status"), "version": g.get("version"),
+                               "seed": g.get("seed"),
+                               "instances": len(g.get("instances") or []),
+                               "edges": len(g.get("edges") or []),
+                               "branches": ((g.get("profile") or {}).get("branches") or []),
+                               "analytics": g.get("analytics") or {}}}
+        except Exception as e:
+            return {"error": str(e)[:250]}
+    if name in ("pack.list", "pack.compile", "release.create", "task.status", "campaign.list", "actions.list",
+                 "images.plan", "images.generate", "images.upload"):
         try:
             import sys as _sys2
             _sys2.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -676,6 +756,24 @@ def handle(state: dict, method: str, params: dict) -> dict:
                                             args.get("status"), int(args.get("limit") or 20)),
                     "totals": totals(args.get("campaign")),
                 }}
+            if name in ("images.plan", "images.generate", "images.upload"):
+                from pipeline.images_flow import plan, generate, upload_batch
+                store = str(args.get("store") or "oddhobb")
+                sku = str(args.get("sku") or "")
+                if not sku:
+                    return {"error": "sku required"}
+                if name == "images.plan":
+                    return {"result": plan(store, sku, str(args.get("provider") or "cloudflare"))}
+                live = args.get("live") is True
+                grant = args.get("grant")
+                ctx = {"grant": grant} if grant else None
+                if name == "images.generate":
+                    return {"result": generate(store, sku, args.get("slots"),
+                                               str(args.get("provider") or "cloudflare"),
+                                               dry_run=not live, ctx=ctx)}
+                return {"result": upload_batch(store, sku, args.get("items"),
+                                               dry_run=not live, ctx=ctx,
+                                               campaign=args.get("campaign"))}
         except Exception as e:
             return {"error": str(e)[:250]}
     return {"error": f"unknown tool {name}"}

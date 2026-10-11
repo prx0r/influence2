@@ -1,0 +1,52 @@
+{
+  "slug": "nolan",
+  "character_id": "no_nose_nolan",
+  "name": "No-Nose Nolan",
+  "category": "character",
+  "niche": "deadpan bureaucratic menace / Kill Tony persona",
+  "tagline": "Competence is performed, not demonstrated",
+  "graph_ref": "bgraph2/registry/characters/no_nose_nolan.json",
+  "seed_ref": "characters/audition/seeds/nolan_seed.json",
+  "slots": {
+    "youtube": {
+      "status": "pending",
+      "fields": {},
+      "updated_at": "",
+      "receipts": []
+    },
+    "x": {
+      "status": "pending",
+      "fields": {},
+      "updated_at": "",
+      "receipts": []
+    },
+    "instagram": {
+      "status": "pending",
+      "fields": {},
+      "updated_at": "",
+      "receipts": []
+    },
+    "tiktok": {
+      "status": "pending",
+      "fields": {},
+      "updated_at": "",
+      "receipts": []
+    },
+    "phone": {
+      "status": "pending",
+      "fields": {
+        "note": "shares brand Telnyx line until per-character numbers provisioned"
+      },
+      "updated_at": "",
+      "receipts": []
+    },
+    "voice": {
+      "status": "pending",
+      "fields": {
+        "note": "audition default fallback is en-US-GuyNeural; confirm against tts_provider.VOICES for nolan before claiming"
+      },
+      "updated_at": "",
+      "receipts": []
+    }
+  }
+}
