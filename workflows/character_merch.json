@@ -1,0 +1,130 @@
+{
+  "v": 2,
+  "name": "character_merch",
+  "description": "Character merch pipeline: validated character → Jev judges merch fit → agent drafts product line → OddHobb/Etsy listing draft → Prodigi fulfillment check → human approves each product. Characters sell like Earl (Shopify merch $2.99-$49.99), fulfilled through OddHobb print network.",
+  "schemas": {
+    "Request": {
+      "type": "object",
+      "properties": {
+        "character_id": { "type": "string" },
+        "brand": { "type": "string" },
+        "niche": { "type": "string" },
+        "validation_verdict": { "type": "string" },
+        "audience_size": { "type": "number" }
+      },
+      "required": ["character_id", "brand", "niche"],
+      "additionalProperties": true
+    },
+    "MerchFit": {
+      "type": "object",
+      "properties": {
+        "ready_for_merch": {
+          "type": "boolean",
+          "description": "Does this character have enough audience recognition and distinctive identity to sell merch? Need memorable catchphrases, visual identity, or fan demand."
+        },
+        "best_category": {
+          "type": "string",
+          "enum": ["apparel", "plush", "stationery", "audio", "bundle"],
+          "description": "Which merch category fits best: apparel (shirts/hoodies), plush (teddy/figures), stationery (magnets/cards/paper), audio (theme song/ringtones), bundle (multi-product set)?"
+        }
+      },
+      "required": ["ready_for_merch", "best_category"],
+      "additionalProperties": false
+    },
+    "ProductLine": {
+      "type": "object",
+      "properties": {
+        "products": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "type": { "type": "string" },
+              "price_usd": { "type": "number" },
+              "prodigi_sku": { "type": "string" },
+              "why": { "type": "string" }
+            },
+            "required": ["name", "type", "price_usd", "why"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["products"],
+      "additionalProperties": false
+    },
+    "MerchPlan": {
+      "type": "object",
+      "properties": {
+        "character_id": { "type": "string" },
+        "category": { "type": "string" },
+        "products": { "type": "array" },
+        "fulfillment": { "type": "string" },
+        "total_skus": { "type": "number" }
+      },
+      "required": ["character_id", "category", "products"],
+      "additionalProperties": true
+    },
+    "Receipt": {
+      "type": "object",
+      "properties": { "ok": { "type": "boolean" } },
+      "required": [],
+      "additionalProperties": true
+    }
+  },
+  "input": { "schemaId": "Request" },
+  "output": { "schemaId": "MerchPlan", "path": "plan" },
+  "root": {
+    "node": "chain",
+    "steps": [
+      {
+        "node": "judge",
+        "label": "assess-merch-fit",
+        "state": {
+          "character": "{character_id}",
+          "niche": "{niche}",
+          "validation": "{validation_verdict}",
+          "audience": "{audience_size}"
+        },
+        "out": "MerchFit",
+        "as": "fit"
+      },
+      {
+        "node": "agent",
+        "label": "draft-product-line",
+        "instructions": "You are a character merch strategist. Given the character and the chosen merch category, draft exactly 3 products. Price to avatar farm norms: apparel $19.99-39, plush $29-49.99, stationery $11.99-12.99, audio $2.99, bundle $47-59. Each product needs: name (character-branded, e.g. 'Nolan's Compliance Mug'), type, price_usd, prodigi_sku (use format apparel_basic_tee, plush_12in, mug_11oz, sticker_pack, art_print_a4 — or empty if unsure), why (1 sentence connecting to character identity). Earl precedent: theme song $2.99, magnets $12.99, wrapping paper $11.99, teddy $49.99. Return JSON with products array.",
+        "state": {
+          "character": "{character_id}",
+          "category": "{fit}",
+          "niche": "{niche}"
+        },
+        "tools": [],
+        "out": "ProductLine",
+        "as": "line"
+      },
+      {
+        "node": "code",
+        "label": "build-merch-plan",
+        "code": "s => { const prods = ((s.line && s.line.products) || []).slice(0, 3); return { plan: { character_id: s.character_id, brand: s.brand, category: (s.fit && s.fit.best_category) || 'bundle', products: prods, fulfillment: 'oddhobb-etsy + prodigi-print', total_skus: prods.length, needs_review: true } }; }"
+      },
+      {
+        "node": "call",
+        "label": "log-merch-receipt",
+        "via": "tool",
+        "tool": "local.log_receipt",
+        "args": { "workflow": "character_merch", "brand": "{brand}", "plan": "{plan}" },
+        "out": "Receipt",
+        "as": "receipt",
+        "deadline_s": 10
+      },
+      {
+        "node": "escalate",
+        "label": "human-approves-merch",
+        "when": { "predicate": "field_true", "path": "plan.needs_review" },
+        "kind": "character_merch",
+        "stage": "merch",
+        "summary": "Merch plan for {plan.character_id}: {plan.total_skus} SKUs in {plan.category} via {plan.fulfillment}."
+      }
+    ]
+  }
+}

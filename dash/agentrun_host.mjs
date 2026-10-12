@@ -82,6 +82,9 @@ export async function runEffect(params) {
   if (tool === "local.fuse_feedback") {
     return await fuseFeedback(input);
   }
+  if (tool === "local.validate_character_market") {
+    return await validateCharacterMarket(input);
+  }
 
   // Everything else → dash MCP tools/call
   const res = await fetch(MCP_URL, {
@@ -293,6 +296,27 @@ async function videoStats(videoId, key) {
     likes: parseInt(s.likeCount || "0"),
     comments: parseInt(s.commentCount || "0"),
   };
+}
+
+/** Character market validation — AvatarChannels-informed code checks. */
+async function validateCharacterMarket(input) {
+  const { execFileSync: ef } = await import("node:child_process");
+  const script = `
+import json, sys
+sys.path.insert(0, "/root/influence2")
+from pipeline import character_market as _cm
+inp = json.loads(sys.argv[1])
+print(json.dumps(_cm.validate_character({
+    "name": inp.get("name", ""), "handle": inp.get("handle", ""),
+    "persona": inp.get("persona", "other"), "gender": inp.get("gender", ""),
+    "age": inp.get("age", ""), "niche": inp.get("niche", ""),
+    "video_length_min": inp.get("video_length_min") or 0,
+    "uploads_per_week": inp.get("uploads_per_week") or 0,
+    "products": inp.get("products") or []})))
+`;
+  const out = ef("python3", ["-c", script, JSON.stringify(input)],
+    { encoding: "utf8", timeout: 30000 });
+  return JSON.parse(out);
 }
 
 /** Unified feedback fusion — all sources, one call. */

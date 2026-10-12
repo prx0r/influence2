@@ -1,0 +1,151 @@
+{
+  "v": 2,
+  "name": "character_validate",
+  "description": "Character validation gates: code checks (persona saturation, format, naming, monetization vs 681 avatar channels) + Jev judges (voice distinctiveness, AI disclosure, brand safety). Verdict: READY / NEEDS_WORK / NOT_READY. Human reviews before character goes live or gets products.",
+  "schemas": {
+    "Request": {
+      "type": "object",
+      "properties": {
+        "character_id": { "type": "string" },
+        "name": { "type": "string" },
+        "handle": { "type": "string" },
+        "persona": { "type": "string" },
+        "gender": { "type": "string" },
+        "age": { "type": "string" },
+        "niche": { "type": "string" },
+        "video_length_min": { "type": "number" },
+        "uploads_per_week": { "type": "number" },
+        "products": { "type": "array" },
+        "voice_description": { "type": "string" },
+        "sample_text": { "type": "string" }
+      },
+      "required": ["character_id", "name", "niche"],
+      "additionalProperties": true
+    },
+    "MarketCheck": {
+      "type": "object",
+      "properties": {
+        "character": { "type": "string" },
+        "total": { "type": "number" },
+        "verdict": { "type": "string" }
+      },
+      "required": [],
+      "additionalProperties": true
+    },
+    "VoiceDistinct": {
+      "type": "object",
+      "properties": {
+        "is_distinct": {
+          "type": "boolean",
+          "description": "Is this character voice genuinely distinctive, not generic AI-slop? Would a viewer recognize this character from voice alone?"
+        },
+        "has_catchphrase_energy": {
+          "type": "boolean",
+          "description": "Does the sample text have memorable phrasing, rhythm, or attitude that could become a catchphrase or signature style?"
+        }
+      },
+      "required": ["is_distinct", "has_catchphrase_energy"],
+      "additionalProperties": false
+    },
+    "ComplianceCheck": {
+      "type": "object",
+      "properties": {
+        "disclosure_planned": {
+          "type": "boolean",
+          "description": "Is there a plan to disclose AI-generated content (in about section, video descriptions, or on-screen)? Earl is the only compliant channel in 681 — this matters."
+        },
+        "brand_safe": {
+          "type": "boolean",
+          "description": "Is this character concept brand-safe for merch and advertisers? No hate, no deception, no impersonation of real people."
+        }
+      },
+      "required": ["disclosure_planned", "brand_safe"],
+      "additionalProperties": false
+    },
+    "Validation": {
+      "type": "object",
+      "properties": {
+        "character_id": { "type": "string" },
+        "market_verdict": { "type": "string" },
+        "market_score": { "type": "number" },
+        "voice_distinct": { "type": "boolean" },
+        "compliant": { "type": "boolean" },
+        "verdict": { "type": "string" },
+        "blockers": { "type": "array" }
+      },
+      "required": ["character_id", "market_verdict", "verdict"],
+      "additionalProperties": true
+    },
+    "Receipt": {
+      "type": "object",
+      "properties": { "ok": { "type": "boolean" } },
+      "required": [],
+      "additionalProperties": true
+    }
+  },
+  "input": { "schemaId": "Request" },
+  "output": { "schemaId": "Validation", "path": "validation" },
+  "root": {
+    "node": "chain",
+    "steps": [
+      {
+        "node": "call",
+        "label": "market-checks",
+        "via": "tool",
+        "tool": "local.validate_character_market",
+        "args": {
+          "name": "{name}", "handle": "{handle}", "persona": "{persona}",
+          "gender": "{gender}", "age": "{age}", "niche": "{niche}",
+          "video_length_min": "{video_length_min}",
+          "uploads_per_week": "{uploads_per_week}", "products": "{products}"
+        },
+        "out": "MarketCheck",
+        "as": "market",
+        "deadline_s": 30
+      },
+      {
+        "node": "parallel",
+        "label": "jev-checks",
+        "branches": [
+          {
+            "node": "judge",
+            "label": "judge-voice",
+            "state": { "voice": "{voice_description}", "sample": "{sample_text}" },
+            "out": "VoiceDistinct",
+            "as": "voice"
+          },
+          {
+            "node": "judge",
+            "label": "judge-compliance",
+            "state": { "character": "{name}", "niche": "{niche}" },
+            "out": "ComplianceCheck",
+            "as": "compliance"
+          }
+        ]
+      },
+      {
+        "node": "code",
+        "label": "aggregate-validation",
+        "code": "s => { const m = s.market || {}; const v = s.voice || {}; const c = s.compliance || {}; const blockers = []; if ((m.total || 0) < 50) blockers.push('market score ' + (m.total || 0) + ' below 50'); if (!v.is_distinct) blockers.push('voice not distinctive'); if (!c.brand_safe) blockers.push('brand safety failed'); if (!c.disclosure_planned) blockers.push('no AI disclosure plan (Earl precedent)'); const mv = m.verdict || 'NOT_READY'; let verdict = 'NOT_READY'; if (blockers.length === 0 && mv === 'READY') verdict = 'READY'; else if (blockers.length <= 2) verdict = 'NEEDS_WORK'; return { validation: { character_id: s.character_id, market_verdict: mv, market_score: m.total || 0, voice_distinct: !!v.is_distinct, compliant: !!(c.brand_safe && c.disclosure_planned), verdict: verdict, blockers: blockers, needs_review: true } }; }"
+      },
+      {
+        "node": "call",
+        "label": "log-validation-receipt",
+        "via": "tool",
+        "tool": "local.log_receipt",
+        "args": { "workflow": "character_validate", "validation": "{validation}" },
+        "out": "Receipt",
+        "as": "receipt",
+        "deadline_s": 10
+      },
+      {
+        "node": "escalate",
+        "label": "human-reviews-character",
+        "when": { "predicate": "field_true", "path": "validation.needs_review" },
+        "kind": "character_validation",
+        "stage": "validation",
+        "summary": "Character {validation.character_id}: {validation.verdict} (market {validation.market_score}). Blockers: {validation.blockers}."
+      }
+    ]
+  }
+}
