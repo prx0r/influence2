@@ -1,0 +1,120 @@
+{
+  "v": 2,
+  "name": "intel_refresh",
+  "description": "Scheduled intel refresh: re-pull AvatarChannels export, re-mine archetypes, Jev re-validates, update priors cache. Runs weekly as export refreshes daily. Read-only except cache write. No human needed unless archetypes shift significantly.",
+  "schemas": {
+    "Request": {
+      "type": "object",
+      "properties": {
+        "min_n": { "type": "number" },
+        "top_k": { "type": "number" }
+      },
+      "required": [],
+      "additionalProperties": true
+    },
+    "RefreshResult": {
+      "type": "object",
+      "properties": {
+        "channels": { "type": "number" },
+        "as_of": { "type": "string" },
+        "archetypes_mined": { "type": "number" }
+      },
+      "required": [],
+      "additionalProperties": true
+    },
+    "MinedPatterns": {
+      "type": "object",
+      "properties": {
+        "archetypes": { "type": "array" },
+        "lift": { "type": "object" },
+        "gaps": { "type": "array" }
+      },
+      "required": [],
+      "additionalProperties": true
+    },
+    "PatternVerdict": {
+      "type": "object",
+      "properties": {
+        "is_real_pattern": {
+          "type": "boolean",
+          "description": "Is this a real causal pattern (not coincidence, survivorship bias, or farm artifact)?"
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low"],
+          "description": "How confident are you this pattern would replicate?"
+        }
+      },
+      "required": ["is_real_pattern", "confidence"],
+      "additionalProperties": false
+    },
+    "RefreshReport": {
+      "type": "object",
+      "properties": {
+        "channels": { "type": "number" },
+        "validated": { "type": "number" },
+        "shifted": { "type": "boolean" }
+      },
+      "required": ["channels", "validated"],
+      "additionalProperties": true
+    },
+    "Receipt": {
+      "type": "object",
+      "properties": { "ok": { "type": "boolean" } },
+      "required": [],
+      "additionalProperties": true
+    }
+  },
+  "input": { "schemaId": "Request" },
+  "output": { "schemaId": "RefreshReport", "path": "report" },
+  "root": {
+    "node": "chain",
+    "steps": [
+      {
+        "node": "call",
+        "label": "refresh-export",
+        "via": "tool",
+        "tool": "local.refresh_avatar_export",
+        "args": {},
+        "out": "RefreshResult",
+        "as": "refresh",
+        "deadline_s": 120
+      },
+      {
+        "node": "call",
+        "label": "mine-patterns",
+        "via": "tool",
+        "tool": "local.mine_archetypes",
+        "args": { "min_n": "{min_n}", "top_k": "{top_k}" },
+        "out": "MinedPatterns",
+        "as": "mined",
+        "deadline_s": 60
+      },
+      {
+        "node": "sift",
+        "label": "validate-patterns",
+        "itemsPath": "mined.archetypes",
+        "describe": "{item.persona} | {item.length} → {item.sell_rate} (n={item.n})",
+        "state": { "lift": "{mined.lift}" },
+        "out": "PatternVerdict",
+        "as": "checked",
+        "keep": { "path": "is_real_pattern" }
+      },
+      {
+        "node": "code",
+        "label": "build-refresh-report",
+        "code": "s => { const kept = ((s.checked && s.checked.items) || []); return { report: { channels: (s.refresh && s.refresh.channels) || 0, as_of: (s.refresh && s.refresh.as_of) || '', validated: kept.length, shifted: kept.length > 0, needs_review: false } }; }"
+      },
+      {
+        "node": "call",
+        "label": "log-refresh-receipt",
+        "via": "tool",
+        "tool": "local.log_receipt",
+        "args": { "workflow": "intel_refresh", "report": "{report}" },
+        "out": "Receipt",
+        "as": "receipt",
+        "deadline_s": 10
+      }
+    ]
+  }
+}

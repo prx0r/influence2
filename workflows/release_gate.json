@@ -6,16 +6,38 @@
     "Request": {
       "type": "object",
       "properties": {
-        "brand": { "type": "string" },
-        "channel": { "type": "string" },
-        "sku": { "type": "string" },
-        "title": { "type": "string" },
-        "description": { "type": "string" },
-        "platform": { "type": "string" },
-        "handle": { "type": "string" },
-        "quality_score": { "type": "number" }
+        "brand": {
+          "type": "string"
+        },
+        "channel": {
+          "type": "string"
+        },
+        "sku": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string"
+        },
+        "handle": {
+          "type": "string"
+        },
+        "quality_score": {
+          "type": "number"
+        }
       },
-      "required": ["brand", "channel", "title", "platform", "handle"],
+      "required": [
+        "brand",
+        "channel",
+        "title",
+        "platform",
+        "handle"
+      ],
       "additionalProperties": true
     },
     "BrandSafety": {
@@ -26,7 +48,9 @@
           "description": "Is this title and description brand-safe? No misleading claims, no off-brand tone, no policy violations."
         }
       },
-      "required": ["is_safe"],
+      "required": [
+        "is_safe"
+      ],
       "additionalProperties": false
     },
     "TitleQuality": {
@@ -34,34 +58,83 @@
       "properties": {
         "quality": {
           "type": "string",
-          "enum": ["strong", "adequate", "weak"],
+          "enum": [
+            "strong",
+            "adequate",
+            "weak"
+          ],
           "description": "Title hook strength: strong (would click), adequate (fine), weak (needs rewrite)."
         }
       },
-      "required": ["quality"],
+      "required": [
+        "quality"
+      ],
       "additionalProperties": false
     },
     "GateResult": {
       "type": "object",
       "properties": {
-        "brand": { "type": "string" },
-        "title": { "type": "string" },
-        "verdict": { "type": "string" },
-        "checks": { "type": "object" },
-        "reasons": { "type": "array" }
+        "brand": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "verdict": {
+          "type": "string"
+        },
+        "checks": {
+          "type": "object"
+        },
+        "reasons": {
+          "type": "array"
+        }
       },
-      "required": ["brand", "title", "verdict", "checks"],
+      "required": [
+        "brand",
+        "title",
+        "verdict",
+        "checks"
+      ],
       "additionalProperties": true
     },
     "Receipt": {
       "type": "object",
-      "properties": { "ok": { "type": "boolean" } },
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        }
+      },
+      "required": [],
+      "additionalProperties": true
+    },
+    "PatternCheck": {
+      "type": "object",
+      "properties": {
+        "verdict": {
+          "type": "string"
+        },
+        "score": {
+          "type": "number"
+        },
+        "passed": {
+          "type": "number"
+        },
+        "total": {
+          "type": "number"
+        }
+      },
       "required": [],
       "additionalProperties": true
     }
   },
-  "input": { "schemaId": "Request" },
-  "output": { "schemaId": "GateResult", "path": "gate" },
+  "input": {
+    "schemaId": "Request"
+  },
+  "output": {
+    "schemaId": "GateResult",
+    "path": "gate"
+  },
   "root": {
     "node": "chain",
     "steps": [
@@ -72,30 +145,54 @@
           {
             "node": "judge",
             "label": "check-brand-safety",
-            "state": { "title": "{title}", "description": "{description}", "brand": "{brand}" },
+            "state": {
+              "title": "{title}",
+              "description": "{description}",
+              "brand": "{brand}"
+            },
             "out": "BrandSafety",
             "as": "safety"
           },
           {
             "node": "judge",
             "label": "check-title-quality",
-            "state": { "title": "{title}", "platform": "{platform}" },
+            "state": {
+              "title": "{title}",
+              "platform": "{platform}"
+            },
             "out": "TitleQuality",
             "as": "title_q"
           }
         ]
       },
       {
+        "node": "call",
+        "label": "check-farm-patterns",
+        "via": "tool",
+        "tool": "local.check_patterns",
+        "args": {
+          "title": "{title}",
+          "description": "{description}"
+        },
+        "out": "PatternCheck",
+        "as": "patterns",
+        "deadline_s": 15
+      },
+      {
         "node": "code",
         "label": "aggregate-verdict",
-        "code": "s => { const reasons = []; const safe = !!(s.safety && s.safety.is_safe); if (!safe) reasons.push('brand safety failed'); const q = (s.title_q && s.title_q.quality) || 'weak'; if (q === 'weak') reasons.push('title quality weak'); return { gate: { brand: s.brand, title: s.title, verdict: reasons.length === 0 ? 'PASS' : 'FAIL', checks: { brand_safe: safe, title_quality: q }, reasons: reasons, needs_review: true } }; }"
+        "code": "s => { const reasons = []; const safe = !!(s.safety && s.safety.is_safe); if (!safe) reasons.push(\"brand safety failed\"); const q = (s.title_q && s.title_q.quality) || \"weak\"; if (q === \"weak\") reasons.push(\"title quality weak\"); const pat = s.patterns || {}; const pv = pat.verdict || \"BREAKS\"; if (pv === \"BREAKS\") reasons.push(\"breaks farm patterns (\" + (pat.passed || 0) + \"/7)\"); return { gate: { brand: s.brand, title: s.title, verdict: reasons.length === 0 ? \"PASS\" : \"FAIL\", checks: { brand_safe: safe, title_quality: q, patterns: pv, pattern_score: pat.score || 0 }, reasons: reasons, needs_review: true } }; }"
       },
       {
         "node": "call",
         "label": "log-gate-receipt",
         "via": "tool",
         "tool": "local.log_receipt",
-        "args": { "workflow": "release_gate", "brand": "{brand}", "gate": "{gate}" },
+        "args": {
+          "workflow": "release_gate",
+          "brand": "{brand}",
+          "gate": "{gate}"
+        },
         "out": "Receipt",
         "as": "receipt",
         "deadline_s": 10
@@ -103,7 +200,10 @@
       {
         "node": "escalate",
         "label": "human-approves-release",
-        "when": { "predicate": "field_true", "path": "gate.needs_review" },
+        "when": {
+          "predicate": "field_true",
+          "path": "gate.needs_review"
+        },
         "kind": "release_gate",
         "stage": "gate",
         "summary": "Release gate {gate.verdict} for {brand}: {gate.title}. Checks: {gate.checks}."

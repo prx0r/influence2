@@ -91,6 +91,12 @@ export async function runEffect(params) {
   if (tool === "local.mine_archetypes") {
     return await mineArchetypes(input);
   }
+  if (tool === "local.check_patterns") {
+    return await checkPatterns(input);
+  }
+  if (tool === "local.refresh_avatar_export") {
+    return await refreshAvatarExport();
+  }
 
   // Everything else → dash MCP tools/call
   const res = await fetch(MCP_URL, {
@@ -305,6 +311,42 @@ async function videoStats(videoId, key) {
     likes: parseInt(s.likeCount || "0"),
     comments: parseInt(s.commentCount || "0"),
   };
+}
+
+/** Re-pull AvatarChannels export + stats (daily refresh). */
+async function refreshAvatarExport() {
+  const res1 = await fetch("https://avatarchannels.com/api/v1/export.json");
+  if (!res1.ok) throw new Error(`export fetch ${res1.status}`);
+  const exp = await res1.text();
+  const res2 = await fetch("https://avatarchannels.com/api/v1/stats");
+  if (!res2.ok) throw new Error(`stats fetch ${res2.status}`);
+  const stats = await res2.text();
+  const { writeFileSync } = await import("node:fs");
+  writeFileSync("/root/influence2/data/avatarintel/export.json", exp);
+  writeFileSync("/root/influence2/data/avatarintel/stats.json", stats);
+  const parsed = JSON.parse(exp);
+  return { channels: (parsed.data || []).length,
+           as_of: (parsed.meta || {}).as_of || "",
+           bytes: exp.length };
+}
+
+/** Score content against 7 proven farm patterns. */
+async function checkPatterns(input) {
+  const { execFileSync: ef } = await import("node:child_process");  const script = `
+import json, sys
+sys.path.insert(0, "/root/influence2")
+from pipeline import pattern_check as _pc
+inp = json.loads(sys.argv[1])
+print(json.dumps(_pc.check_all(
+    title=inp.get("title", ""), description=inp.get("description", ""),
+    sample_text=inp.get("sample_text", ""), thumb_brief=inp.get("thumb_brief", ""),
+    uploads_per_week=float(inp.get("uploads_per_week") or 0),
+    has_product_link=bool(inp.get("has_product_link")),
+    has_chapters=bool(inp.get("has_chapters")))))
+`;
+  const out = ef("python3", ["-c", script, JSON.stringify(input)],
+    { encoding: "utf8", timeout: 30000 });
+  return JSON.parse(out);
 }
 
 /** Mine archetypes from avatar intel export. */
