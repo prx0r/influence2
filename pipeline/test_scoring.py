@@ -123,3 +123,37 @@ def test_pattern_numbered():
 def test_pattern_cadence():
     assert pc.check_cadence(5)["pass"] is True
     assert pc.check_cadence(1)["pass"] is False
+
+
+def test_voice_timing_plan():
+    from pipeline import voice_timing as vt
+    t = vt.timing_plan("Hello world. This is a test.", {"speed": 1.0})
+    assert t["duration_ms"] > t["audible_ms"]
+    assert len(t["tokens"]) == 6
+    assert t["schedule"]["voice_start_ms"] == 1200
+    # slow pace = longer
+    slow = vt.timing_plan("Hello world.", pace="slow")
+    fast = vt.timing_plan("Hello world.", pace="fast")
+    assert slow["audible_ms"] > fast["audible_ms"]
+
+
+def test_voice_reveal():
+    from pipeline import voice_timing as vt
+    text = "Hello world test."
+    t = vt.timing_plan(text)
+    assert vt.revealed_length(text, t, -1) == 0
+    assert vt.revealed_length(text, t, 999999) == len(text)
+
+
+def test_shared_events():
+    import sqlite3
+    from pipeline import shared_events as se
+    db = sqlite3.connect(":memory:")
+    s1 = se.record(db, "move", "human moved prop", by="human")
+    s2 = se.record(db, "judge", "jev scored", by="agent")
+    assert s2 == s1 + 1
+    assert len(se.events_since(db, 0)) == 2
+    assert len(se.events_since(db, s1)) == 1
+    news = se.human_news_line(db, 0)
+    assert "human moved prop" in news
+    assert se.human_news_line(db, s2) == ""
