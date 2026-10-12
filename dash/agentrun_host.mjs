@@ -97,6 +97,12 @@ export async function runEffect(params) {
   if (tool === "local.refresh_avatar_export") {
     return await refreshAvatarExport();
   }
+  if (tool === "local.prep_video") {
+    return await prepVideo(input);
+  }
+  if (tool === "local.upload_status") {
+    return await uploadStatus();
+  }
 
   // Everything else → dash MCP tools/call
   const res = await fetch(MCP_URL, {
@@ -311,6 +317,43 @@ async function videoStats(videoId, key) {
     likes: parseInt(s.likeCount || "0"),
     comments: parseInt(s.commentCount || "0"),
   };
+}
+
+/** Video/audio upload prep + readiness checks (Spotify + YouTube). */
+async function prepVideo(input) {
+  const { execFileSync: ef } = await import("node:child_process");
+  const script = `
+import json, sys
+sys.path.insert(0, "/root/influence2")
+from pipeline import spotify as _sp
+inp = json.loads(sys.argv[1])
+kind = inp.get("kind", "video")
+if kind == "audio":
+    print(json.dumps(_sp.prep_audio_package(
+        inp.get("file", ""), inp.get("title", ""),
+        inp.get("description", ""), inp.get("show", ""))))
+else:
+    print(json.dumps(_sp.prep_video_package(
+        inp.get("file", ""), inp.get("title", ""),
+        inp.get("description", ""), inp.get("show", ""))))
+`;
+  const out = ef("python3", ["-c", script, JSON.stringify(input)],
+    { encoding: "utf8", timeout: 30000 });
+  return JSON.parse(out);
+}
+
+async function uploadStatus() {
+  const { execFileSync: ef } = await import("node:child_process");
+  const script = `
+import json, sys
+sys.path.insert(0, "/root/influence2")
+from pipeline import spotify as _sp
+print(json.dumps({"youtube": _sp.youtube_upload_status(),
+    "spotify_analytics": _sp.show_analytics("")}))
+`;
+  const out = ef("python3", ["-c", script, "{}"],
+    { encoding: "utf8", timeout: 30000 });
+  return JSON.parse(out);
 }
 
 /** Re-pull AvatarChannels export + stats (daily refresh). */

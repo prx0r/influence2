@@ -46,6 +46,7 @@ SOURCE_WEIGHTS = {
     "performance.dials": 0.05,  # body/voice quality markers
     "youtube.deep": 0.03,     # transcript quality signals
     "rewards": 0.02,          # laugh-rate aggregates
+    "spotify.stats": 0.08,        # plays + completion (podcast RSS reach)
     "instagram.stats": 0.0,   # stub
     "tiktok.stats": 0.0,      # stub
     "x.stats": 0.0,           # stub
@@ -229,6 +230,32 @@ def collect_battles(character_id: str) -> list[FeedbackSignal]:
     return out
 
 
+def collect_spotify_stats(episodes: list[dict],
+                          character_id: str = "") -> list[FeedbackSignal]:
+    """Spotify plays + completion → per-episode score.
+
+    episodes: [{name/id, plays, completion (0-100 or 0-1), followers}]
+    Completion is the quality signal (like retention), plays are reach.
+    Score: completion-weighted, normalized 0-100.
+    """
+    out = []
+    for e in episodes:
+        plays = int(e.get("plays") or 0)
+        comp = float(e.get("completion") or 0)
+        if comp > 1:  # percent → ratio
+            comp = comp / 100
+        comp = max(0.0, min(1.0, comp))
+        # completion matters most (attention revealed), plays scale confidence
+        score = comp * 100
+        out.append(FeedbackSignal(
+            source="spotify.stats",
+            content_id=str(e.get("id") or e.get("name") or ""),
+            character_id=character_id, score_0_100=round(score, 1),
+            metrics={"plays": plays, "completion": round(comp, 3),
+                     "followers_gained": int(e.get("followers") or 0)}))
+    return out
+
+
 def collect_performance_dials() -> list[FeedbackSignal]:
     """MediaPipe + ASR performance markers → quality signals per set.
 
@@ -273,8 +300,9 @@ def collect_performance_dials() -> list[FeedbackSignal]:
     return out
 
 
-def collect_youtube_stats(videos: list[dict],
-                          character_id: str = "") -> list[FeedbackSignal]:
+def collect_youtube_stats(
+        videos: list[dict],
+        character_id: str = "") -> list[FeedbackSignal]:
     """YouTube metrics → per-video score via Phoenix-weighted scorer.
 
     videos: [{id, views, likes, comments, ...}] — from API or learn tables.
