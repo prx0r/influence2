@@ -73,3 +73,39 @@ Rules: ≤0.5°/s drift, 2s dissolve on phrase/section boundaries, hold 2-4 min.
 5. **Verify in viewer**: orbit full 360°, check far-wall quality, table readability, stage sightlines from audience POV. If mushy beyond 5m, accept (cameras stay within 5m) or Plus-cube expand.
 
 Total venue cost: ~$1.50. Hosts everything forever.
+
+---
+
+## Reference precedents (real buildings/spaces)
+
+### Blaibach Concert Hall (Peter Haimerl, Bavaria, 2014)
+- **Descend to enter:** concrete stairs through slit in ground → subterranean lobby with bar wrapping auditorium → hall. The descent IS the opening shot (leave world behind, enter music below).
+- **Pleated concrete walls:** folded layers per acoustic spec, light slits leaking between. Sound looks like folded stone. Specify "pleated concrete + light slits" for concert variant prompt.
+- **200 seats, sold out, village of 2,000.** Intimate scale proven commercially.
+- **Floating seats** on iron swords above light slits (weightless audience feel).
+- Links: archdaily.com/567635 (60 photos), dezeen (ровно concrete interior), Yatzer (best interior shots). Search "Blaibach interior" for money shots.
+- **Apply:** descent sequence for all venues (stairs down = sleep cue), pleated walls for concert room prompt, bar-wrapping-auditorium layout for cellar (bar along wall serving seated audience).
+
+### Mos Eisley Cantina (Star Wars, 1977 — design bible)
+- **Circular bar:** everyone faces inward, audience sees each other. Comedy needs witnesses. Consider round bar variant (vs straight) for Pogtown nights.
+- **Shady alcoves:** perimeter booths for private deals, eavesdropped jokes, species huddling. Side-action cameras. Whispered bits land harder in alcoves than on stage.
+- **Modal Nodes corner:** live band position mapped 1:1 to our jazz trio layout. Bith musicians = reptilian house band precedent.
+- **Droid detector at door** ("we don't serve their kind"): Jev pre-filter made diegetic. Room has standards in-fiction, not just code. Bouncer character enforces.
+- **Trophy walls** (crocodile head, skulls, space-fish): remnant walls proven at galactic scale. Lucas hung trophies; we hang etchings/posters/seals. Same instinct, same payoff.
+- **Brief screen → expanded universe:** 7-min cantina scene spawned Tales anthology (every background alien got backstory). Our model: brief stage appearances → audience demands lore → backstories become content. Every extra is a future headliner.
+- **Implication over exposition:** hooded figure, arguing Rodians, band that never stops. Background species with implied lives. Audience invents stories, then demands them. Discovery engine runs on implication.
+
+---
+
+## Laptop-safe splat viewing (render crashed? read this)
+
+Gaussian splats sort millions of ellipsoids per frame on GPU. Integrated graphics / older laptops choke. Options in order:
+
+1. **100k preview** (free, instant): every Marble export includes 100k-splat preview alongside full-res. Load the small one first — 10× fewer splats, runs anywhere, layout readable.
+2. **Browser viewer, low pixel ratio**: atlasworldmodel.com/tools/splat-viewer renders locally. Shrink browser window to 50% → quarter pixels → quarter GPU load. Still representative for layout checks.
+3. **Server-side screenshots**: ask here — I can render viewpoints headless on this VPS (has GPU? check `nvidia-smi`) and return PNGs. No local GPU needed.
+4. **Thumbnail proxy**: Marble web app shows rendered thumbnails without loading splats. Judge layout from pano/thumbnail before downloading .spz at all.
+5. **Cloud workstation** (nuclear): vast.ai RTX 3090 at ~$0.20/hr for heavy orbit sessions. Only needed for final quality review, never for drafts.
+6. **Skip viewing entirely**: trust the pano (2D preview in Marble dashboard pre-export). If pano looks right, splat is almost certainly fine. Download .spz straight to R2 without local inspection.
+
+**Rule:** never download full-res .spz to laptop. Preview 100k locally, HQ lives on R2 + renders server-side.
