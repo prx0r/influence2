@@ -88,6 +88,9 @@ export async function runEffect(params) {
   if (tool === "local.catalog_character_assets") {
     return await catalogCharacterAssets(input);
   }
+  if (tool === "local.mine_archetypes") {
+    return await mineArchetypes(input);
+  }
 
   // Everything else → dash MCP tools/call
   const res = await fetch(MCP_URL, {
@@ -114,12 +117,15 @@ export async function runJudge(params) {
     "noul → float 0-1. choice → {choice, confidence, probabilities}. " +
     "score → {score, confidence, probabilities}. No prose. No markdown.";
   const user = `STATE:\n${stateText}\n\nQUESTIONS:\n${JSON.stringify(questions)}\n\nAnswer. JSON only.`;
+  // scale tokens with question count (sift asks per-item: items × questions)
+  const nq = Object.keys(questions || {}).length;
+  const maxTok = Math.min(4000, Math.max(600, nq * 150));
   const text = await orChat(
     [
       { role: "system", content: system },
       { role: "user", content: user },
     ],
-    600,
+    maxTok,
     0
   );
   const raw = parseAnswers(text);
@@ -301,6 +307,28 @@ async function videoStats(videoId, key) {
   };
 }
 
+/** Mine archetypes from avatar intel export. */
+async function mineArchetypes(input) {
+  const { execFileSync: ef } = await import("node:child_process");
+  const script = `
+import json, sys
+sys.path.insert(0, "/root/influence2")
+from pipeline import archetypes as _a
+min_n = int((json.loads(sys.argv[1]) or {}).get("min_n") or 5)
+top_k = int((json.loads(sys.argv[1]) or {}).get("top_k") or 10)
+arch = _a.mine_archetypes(min_n)[:top_k]
+lift = _a.seller_vs_nonseller()
+gaps = _a.gap_archetypes()
+print(json.dumps({"archetypes": arch,
+    "lift": {"cadence": lift.get("cadence", {}).get("lift", {}),
+             "length": lift.get("length", {}).get("lift", {})},
+    "gaps": gaps}))
+`;
+  const out = ef("python3", ["-c", script, JSON.stringify(input)],
+    { encoding: "utf8", timeout: 60000 });
+  return JSON.parse(out);
+}
+
 /** Character asset catalog + product proposals for commerce. */
 async function catalogCharacterAssets(input) {
   const { execFileSync: ef } = await import("node:child_process");
@@ -450,9 +478,20 @@ async function logReceipt(input) {
   // append to dash receipts.jsonl via python (keeps one writer)
   const { execFileSync: ef } = await import("node:child_process");
   const script = `
-import json, sys, time
-r = {"ts": time.time(), "kind": "agentrun", **json.loads(sys.argv[1])}
+import json, sys, time, os
+inp = json.loads(sys.argv[1])
+r = {"ts": time.time(), "kind": "agentrun", **inp}
 open("/root/influence2/dash/receipts.jsonl", "a").write(json.dumps(r) + "\\n")
+# archetype_mine: persist validated patterns as priors cache
+if inp.get("workflow") == "archetype_mine":
+    res = inp.get("result") or {}
+    validated = res.get("validated") or []
+    if validated:
+        os.makedirs("/root/influence2/data/avatarintel", exist_ok=True)
+        open("/root/influence2/data/avatarintel/validated_archetypes.json", "w").write(
+            json.dumps({"validated": validated,
+                        "updated_at": time.time(),
+                        "source": "archetype_mine workflow"}, indent=2))
 print(json.dumps({"ok": True}))
 `;
   const out = ef("python3", ["-c", script, JSON.stringify(input)], { encoding: "utf8" });

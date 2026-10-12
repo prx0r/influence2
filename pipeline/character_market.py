@@ -1,5 +1,4 @@
 """Character market validation — AvatarChannels-informed gates.
-
 Answers, with data: is this character positioned to win?
 Checks persona saturation, format viability, naming conversion,
 monetization readiness, and AI-disclosure compliance against
@@ -10,7 +9,78 @@ Jev judges the nuanced questions; code checks the countable ones.
 """
 from __future__ import annotations
 
+import json
+import os
+
 from pipeline import avatar_intel as ai
+
+# Validated archetypes cache (written by archetype_mine workflow).
+# Maps persona/length/cadence → {sell_rate, n, median_price}.
+ARCHETYPE_CACHE = "/root/influence2/data/avatarintel/validated_archetypes.json"
+
+
+def match_archetype(persona: str, video_length_min: float = 0,
+                    uploads_per_week: float = 0) -> dict:
+    """Match a character against Jev-validated archetypes.
+
+    Returns {matched, archetype, sell_rate, prior_boost} where prior_boost
+    is a score adjustment (-10 to +15) applied to the market total.
+    No match → checks gap list → blue_ocean bonus if in empty niche.
+    """
+    # bucketize like the miner
+    mins = video_length_min
+    if mins < 8:
+        length = "short<8"
+    elif mins < 20:
+        length = "mid8-20"
+    elif mins < 40:
+        length = "long20-40"
+    else:
+        length = "epic40+"
+    upw = uploads_per_week
+    if upw < 1:
+        cadence = "rare<1"
+    elif upw < 3:
+        cadence = "steady1-3"
+    elif upw < 7:
+        cadence = "active3-7"
+    else:
+        cadence = "daily7+"
+    # load validated archetypes (from archetype_mine receipts)
+    validated: list[dict] = []
+    if os.path.exists(ARCHETYPE_CACHE):
+        try:
+            with open(ARCHETYPE_CACHE) as f:
+                validated = json.load(f).get("validated", [])
+        except (json.JSONDecodeError, OSError):
+            pass
+    # fallback: mine fresh if no cache (top patterns, n>=8)
+    if not validated:
+        try:
+            from pipeline import archetypes as _arch
+            for a in _arch.mine_archetypes(min_n=8)[:10]:
+                validated.append(a)
+        except Exception:
+            pass
+    for a in validated:
+        # persona match: archetype persona string contains our persona key
+        # e.g. "homemaker/female/middle_aged" matches persona "homemaker"
+        ap = str(a.get("persona", ""))
+        if (persona in ap and a.get("length") == length
+                and a.get("cadence") == cadence):
+            sr = float(a.get("sell_rate", 0) or 0)
+            boost = round((sr - 0.41) * 30, 1)  # vs 41% base sell rate
+            boost = max(-10, min(15, boost))
+            return {"matched": True, "archetype": ap,
+                    "sell_rate": sr, "n": a.get("n", 0),
+                    "median_price_usd": a.get("median_price_usd"),
+                    "prior_boost": boost,
+                    "note": f"matches validated archetype "
+                            f"({a.get('sellers', '?')}/{a.get('n', '?')} sell)"}
+    return {"matched": False, "archetype": None, "sell_rate": None,
+            "prior_boost": 0,
+            "note": "no validated archetype match — unproven combo"}
+
 
 
 def check_persona_saturation(persona: str, gender: str = "",
@@ -165,6 +235,13 @@ def validate_character(character: dict) -> dict:
     # (money matters most — 41% of channels sell, sellers upload 2x more)
     total = (persona["score"] * 0.25 + fmt["score"] * 0.25 +
              naming["score"] * 0.15 + money["score"] * 0.35)
+    # archetype prior: validated patterns adjust the total
+    arch = match_archetype(
+        character.get("persona", "other"),
+        float(character.get("video_length_min") or 0),
+        float(character.get("uploads_per_week") or 0))
+    total += arch["prior_boost"]
+    total = round(total, 1)
     if total >= 70:
         verdict = "READY"
     elif total >= 50:
@@ -174,4 +251,5 @@ def validate_character(character: dict) -> dict:
     return {"character": character.get("name", ""),
             "persona": persona, "format": fmt,
             "naming": naming, "monetization": money,
-            "total": round(total, 1), "verdict": verdict}
+            "archetype": arch,
+            "total": total, "verdict": verdict}

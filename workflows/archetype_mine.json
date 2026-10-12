@@ -1,0 +1,100 @@
+{
+  "v": 2,
+  "name": "archetype_mine",
+  "description": "Mine archetypes from 681 avatar channels, Jev validates which patterns are real vs coincidence, writes validated archetypes as priors. Code finds correlations, Jev judges causation. Run weekly as export refreshes.",
+  "schemas": {
+    "Request": {
+      "type": "object",
+      "properties": {
+        "min_n": { "type": "number" },
+        "top_k": { "type": "number" }
+      },
+      "required": [],
+      "additionalProperties": true
+    },
+    "MinedPatterns": {
+      "type": "object",
+      "properties": {
+        "archetypes": { "type": "array" },
+        "lift": { "type": "object" },
+        "gaps": { "type": "array" }
+      },
+      "required": [],
+      "additionalProperties": true
+    },
+    "PatternVerdict": {
+      "type": "object",
+      "properties": {
+        "is_real_pattern": {
+          "type": "boolean",
+          "description": "Is this a real causal pattern (not coincidence, survivorship bias, or farm artifact)? Consider: sample size, alternative explanations, whether the mechanism makes sense."
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low"],
+          "description": "How confident are you this pattern would replicate for a new channel?"
+        }
+      },
+      "required": ["is_real_pattern", "confidence"],
+      "additionalProperties": false
+    },
+    "ValidatedArchetypes": {
+      "type": "object",
+      "properties": {
+        "validated": { "type": "array" },
+        "rejected": { "type": "array" },
+        "count": { "type": "number" }
+      },
+      "required": ["validated", "count"],
+      "additionalProperties": true
+    },
+    "Receipt": {
+      "type": "object",
+      "properties": { "ok": { "type": "boolean" } },
+      "required": [],
+      "additionalProperties": true
+    }
+  },
+  "input": { "schemaId": "Request" },
+  "output": { "schemaId": "ValidatedArchetypes", "path": "result" },
+  "root": {
+    "node": "chain",
+    "steps": [
+      {
+        "node": "call",
+        "label": "mine-patterns",
+        "via": "tool",
+        "tool": "local.mine_archetypes",
+        "args": { "min_n": "{min_n}", "top_k": "{top_k}" },
+        "out": "MinedPatterns",
+        "as": "mined",
+        "deadline_s": 60
+      },
+      {
+        "node": "sift",
+        "label": "validate-patterns",
+        "itemsPath": "mined.archetypes",
+        "describe": "{item.persona} | {item.length} | {item.cadence} → {item.sell_rate} sell rate (n={item.n})",
+        "state": { "lift": "{mined.lift}" },
+        "out": "PatternVerdict",
+        "as": "checked",
+        "keep": { "path": "is_real_pattern" }
+      },
+      {
+        "node": "code",
+        "label": "build-archetype-library",
+        "code": "s => { const kept = ((s.checked && s.checked.items) || []); const all = ((s.mined && s.mined.archetypes) || []); const keptIds = new Set(kept.map(k => (k.persona || '') + (k.length || '') + (k.cadence || ''))); const rej = all.filter(a => !keptIds.has((a.persona || '') + (a.length || '') + (a.cadence || ''))).map(a => a.persona + ' ' + a.length); return { result: { validated: kept, rejected: rej, count: kept.length, gaps: (s.mined && s.mined.gaps) || [] } }; }"
+      },
+      {
+        "node": "call",
+        "label": "log-archetype-receipt",
+        "via": "tool",
+        "tool": "local.log_receipt",
+        "args": { "workflow": "archetype_mine", "result": "{result}" },
+        "out": "Receipt",
+        "as": "receipt",
+        "deadline_s": 10
+      }
+    ]
+  }
+}

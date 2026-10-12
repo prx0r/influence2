@@ -1,0 +1,136 @@
+{
+  "validated": [
+    {
+      "persona": "expert/female/middle_aged",
+      "length": "mid8-20",
+      "cadence": "active3-7",
+      "n": 8,
+      "sellers": 7,
+      "sell_rate": 0.875,
+      "median_price_usd": 30,
+      "top_tags": [
+        "interior design",
+        "home decor",
+        "decluttering",
+        "home organization",
+        "small spaces"
+      ],
+      "top_offers": [
+        "guide",
+        "bundle",
+        "ebook"
+      ],
+      "examples": [
+        "@colette-dubois",
+        "@emilyboone1",
+        "@gracesydneybeauty"
+      ]
+    },
+    {
+      "persona": "homesteader/male/senior",
+      "length": "long20-40",
+      "cadence": "active3-7",
+      "n": 12,
+      "sellers": 9,
+      "sell_rate": 0.75,
+      "median_price_usd": 27,
+      "top_tags": [
+        "homesteading",
+        "off-grid living",
+        "self-reliance",
+        "frugal living",
+        "prepping"
+      ],
+      "top_offers": [
+        "ebook",
+        "bundle",
+        "guide"
+      ],
+      "examples": [
+        "@billyrayhomestead",
+        "@craftpena2545",
+        "@donramoncampesino"
+      ]
+    },
+    {
+      "persona": "homemaker/female/middle_aged",
+      "length": "mid8-20",
+      "cadence": "active3-7",
+      "n": 14,
+      "sellers": 10,
+      "sell_rate": 0.714,
+      "median_price_usd": 27,
+      "top_tags": [
+        "cleaning hacks",
+        "frugal living",
+        "decluttering",
+        "home cleaning",
+        "household tips"
+      ],
+      "top_offers": [
+        "ebook",
+        "guide",
+        "bundle"
+      ],
+      "examples": [
+        "@berthacleanhome",
+        "@cleanwithrosa",
+        "@emihigaspanish"
+      ]
+    },
+    {
+      "persona": "retired_professional/female/senior",
+      "length": "mid8-20",
+      "cadence": "active3-7",
+      "n": 10,
+      "sellers": 7,
+      "sell_rate": 0.7,
+      "median_price_usd": 27,
+      "top_tags": [
+        "senior living",
+        "living alone",
+        "women over 60",
+        "cooking tips",
+        "decluttering"
+      ],
+      "top_offers": [
+        "ebook",
+        "bundle",
+        "guide"
+      ],
+      "examples": [
+        "@donnafixes",
+        "@lisabeautyy",
+        "@margretmillercuts"
+      ]
+    },
+    {
+      "persona": "expert/male/senior",
+      "length": "long20-40",
+      "cadence": "active3-7",
+      "n": 9,
+      "sellers": 6,
+      "sell_rate": 0.667,
+      "median_price_usd": 44.99,
+      "top_tags": [
+        "golf",
+        "golf equipment",
+        "senior golf",
+        "budget golf",
+        "driver distance"
+      ],
+      "top_offers": [
+        "ebook",
+        "bundle",
+        "membership"
+      ],
+      "examples": [
+        "@hankmercer1",
+        "@honest-golf-insider",
+        "@houstonfrench5583"
+      ]
+    }
+  ],
+  "updated_at": 1791807097.4289155,
+  "source": "archetype_mine workflow"
+}
