@@ -1,0 +1,37 @@
+{
+  "slug": "classical-nights",
+  "name": "Classical Nights",
+  "category": "channel",
+  "niche": "sleep-piano",
+  "graph_ref": "influence2/data/channels/graph.json",
+  "channel_id": "classical-nights",
+  "slots": {
+    "youtube": {
+      "status": "pending",
+      "fields": {
+        "handle": "@classicalnights"
+      },
+      "updated_at": "",
+      "receipts": []
+    },
+    "spotify": {
+      "status": "pending",
+      "fields": {},
+      "updated_at": "",
+      "receipts": []
+    },
+    "products": {
+      "status": "pending",
+      "fields": {
+        "skus": [
+          "8-Hour Loop",
+          "Loop Library",
+          "Theory Guide",
+          "Sleep Circle"
+        ]
+      },
+      "updated_at": "",
+      "receipts": []
+    }
+  }
+}

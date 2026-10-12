@@ -1,0 +1,36 @@
+{
+  "slug": "grimoire",
+  "name": "Grimoire",
+  "category": "channel",
+  "niche": "ritual-esoteric",
+  "graph_ref": "influence2/data/channels/graph.json",
+  "channel_id": "grimoire",
+  "slots": {
+    "youtube": {
+      "status": "pending",
+      "fields": {
+        "handle": "@grimoirehouse"
+      },
+      "updated_at": "",
+      "receipts": []
+    },
+    "spotify": {
+      "status": "pending",
+      "fields": {},
+      "updated_at": "",
+      "receipts": []
+    },
+    "products": {
+      "status": "pending",
+      "fields": {
+        "skus": [
+          "Tarot deck",
+          "Grimoire journal",
+          "Spell collection"
+        ]
+      },
+      "updated_at": "",
+      "receipts": []
+    }
+  }
+}

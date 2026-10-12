@@ -1,0 +1,37 @@
+{
+  "slug": "folk-fable",
+  "name": "Folk & Fable",
+  "category": "channel",
+  "niche": "sleep-stories",
+  "graph_ref": "influence2/data/channels/graph.json",
+  "channel_id": "folk-fable",
+  "slots": {
+    "youtube": {
+      "status": "pending",
+      "fields": {
+        "handle": "@folkandfable"
+      },
+      "updated_at": "",
+      "receipts": []
+    },
+    "spotify": {
+      "status": "pending",
+      "fields": {},
+      "updated_at": "",
+      "receipts": []
+    },
+    "products": {
+      "status": "pending",
+      "fields": {
+        "skus": [
+          "Volume I ebook",
+          "Complete Library",
+          "Sleep Tales Audio",
+          "Sleep Circle"
+        ]
+      },
+      "updated_at": "",
+      "receipts": []
+    }
+  }
+}

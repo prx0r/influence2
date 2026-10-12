@@ -1,0 +1,241 @@
+{
+  "schema_version": "channel-graph.v1",
+  "updated_at": "2026-10-12",
+  "channels": {
+    "folk-fable": {
+      "channel_id": "folk-fable",
+      "name": "Folk & Fable",
+      "handle": "@folkandfable",
+      "niche": "sleep-stories",
+      "persona": "storyteller grandmother V02",
+      "avatar": "library corner + fire loop, no face",
+      "format": {
+        "length": "25-40 min",
+        "structure": "one tale + chapters + opening ritual"
+      },
+      "cadence": "3/week Mon/Wed/Fri 9pm",
+      "products": [
+        {
+          "name": "Volume I ebook",
+          "price_usd": 27
+        },
+        {
+          "name": "Complete Library",
+          "price_usd": 59
+        },
+        {
+          "name": "Sleep Tales Audio",
+          "price_usd": 9.99
+        },
+        {
+          "name": "Sleep Circle",
+          "price_usd": 9.9
+        }
+      ],
+      "funnel": "video → description first-line → Gumroad → checkout",
+      "status": "ready_to_launch",
+      "competition": 0,
+      "archetype": "story sleep, proven STORY shelf",
+      "launch_gate": "retention >40% AVD on pilot"
+    },
+    "classical-nights": {
+      "channel_id": "classical-nights",
+      "name": "Classical Nights",
+      "handle": "@classicalnights",
+      "niche": "sleep-piano",
+      "persona": "none (faceless by design)",
+      "avatar": "Marble splat: piano in dark room, hands macro",
+      "format": {
+        "length": "full pieces 4-60 min",
+        "structure": "MIDI hands + live audio + 5 cameras"
+      },
+      "cadence": "3/week Tue/Thu/Sun 10pm",
+      "products": [
+        {
+          "name": "8-Hour Loop",
+          "price_usd": 2.99
+        },
+        {
+          "name": "Loop Library",
+          "price_usd": 19.99
+        },
+        {
+          "name": "Theory Guide",
+          "price_usd": 27
+        },
+        {
+          "name": "Sleep Circle",
+          "price_usd": 9.9
+        }
+      ],
+      "funnel": "video → Spotify podcast (dual revenue) → description → Gumroad",
+      "status": "building",
+      "competition": 0,
+      "archetype": "music sleep, zero comps",
+      "launch_gate": "retention lift over static-image baseline"
+    },
+    "pogtown": {
+      "channel_id": "pogtown",
+      "name": "Pogtown",
+      "handle": "@pogtown",
+      "niche": "comedy",
+      "persona": "ensemble: Nolan + storytellers",
+      "avatar": "3D/cartoon stage, consistent framing",
+      "format": {
+        "length": "5-6 min scripted",
+        "structure": "tentpole + twist + comment ask"
+      },
+      "cadence": "3/week",
+      "products": [
+        {
+          "name": "Theme song",
+          "price_usd": 2.99
+        },
+        {
+          "name": "Tee",
+          "price_usd": 24.99
+        },
+        {
+          "name": "Plush",
+          "price_usd": 49.99
+        }
+      ],
+      "funnel": "video → description 93% CTA → Shopify → email → checkout + AI disclosure every upload",
+      "status": "waiting_signal",
+      "competition": 1,
+      "archetype": "grandfather comedy (unproven, needs proof)",
+      "launch_gate": "20+ battles → arena validated → release_gate PASS"
+    },
+    "genius-decon": {
+      "channel_id": "genius-decon",
+      "name": "Genius Deconstructed",
+      "handle": "@geniusdecon",
+      "niche": "music-theory",
+      "persona": "retired tuner/expert",
+      "avatar": "piano + record shelf, still fine",
+      "format": {
+        "length": "15-20 min",
+        "structure": "hook + 5-7 parts + play-then-explain"
+      },
+      "cadence": "3/week",
+      "products": [
+        {
+          "name": "Theory Guide",
+          "price_usd": 27
+        },
+        {
+          "name": "Complete Library",
+          "price_usd": 47
+        },
+        {
+          "name": "Stems Circle",
+          "price_usd": 9.9
+        }
+      ],
+      "funnel": "video → scores link → Gumroad + cross-link sleep version",
+      "status": "planned",
+      "competition": 0,
+      "archetype": "expert music (sells 45% with guides)",
+      "launch_gate": "4 weeks after Classical + theory skill built"
+    },
+    "grimoire": {
+      "channel_id": "grimoire",
+      "name": "Grimoire",
+      "handle": "@grimoirehouse",
+      "niche": "ritual-esoteric",
+      "persona": "practitioner guide voice",
+      "avatar": "library reskin: violet candles, leather book",
+      "format": {
+        "length": "20-30 min ritual readings",
+        "structure": "same fireplace ritual, palette shift"
+      },
+      "cadence": "2/week",
+      "products": [
+        {
+          "name": "Tarot deck",
+          "price_usd": 34.99
+        },
+        {
+          "name": "Grimoire journal",
+          "price_usd": 29
+        },
+        {
+          "name": "Spell collection",
+          "price_usd": 27
+        }
+      ],
+      "funnel": "video → Etsy (grimoirer store) → Prodigi print",
+      "status": "planned",
+      "competition": 0,
+      "archetype": "faith adjacent (6 non-esoteric), ritual sleep empty",
+      "launch_gate": "Fable proves fireplace + sourcing + compliance review"
+    },
+    "longhauls": {
+      "channel_id": "longhauls",
+      "name": "LongHauls",
+      "handle": "@longhauls",
+      "niche": "indie",
+      "persona": "none",
+      "avatar": "none",
+      "format": {},
+      "cadence": "",
+      "products": [],
+      "funnel": "",
+      "status": "parked",
+      "competition": null,
+      "archetype": "",
+      "launch_gate": ""
+    }
+  },
+  "links": [
+    {
+      "from": "folk-fable",
+      "rel": "feeds",
+      "to": "pogtown",
+      "evidence": "tales get comedy retellings",
+      "at": "2026-10-12"
+    },
+    {
+      "from": "classical-nights",
+      "rel": "feeds",
+      "to": "genius-decon",
+      "evidence": "same recording, theory breakdown",
+      "at": "2026-10-12"
+    },
+    {
+      "from": "genius-decon",
+      "rel": "feeds",
+      "to": "classical-nights",
+      "evidence": "hear it uninterrupted link",
+      "at": "2026-10-12"
+    },
+    {
+      "from": "folk-fable",
+      "rel": "shares_engine_with",
+      "to": "grimoire",
+      "evidence": "same fireplace, violet reskin",
+      "at": "2026-10-12"
+    },
+    {
+      "from": "classical-nights",
+      "rel": "shares_audience_with",
+      "to": "folk-fable",
+      "evidence": "bedtime block Tue/Thu vs Mon/Wed/Fri",
+      "at": "2026-10-12"
+    },
+    {
+      "from": "no_nose_nolan",
+      "rel": "appears_on",
+      "to": "pogtown",
+      "evidence": "primary stage",
+      "at": "2026-10-12"
+    },
+    {
+      "from": "folk-fable",
+      "rel": "supplies_lore_to",
+      "to": "no_nose_nolan",
+      "evidence": "tales as rant material",
+      "at": "2026-10-12"
+    }
+  ]
+}

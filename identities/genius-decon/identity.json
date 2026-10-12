@@ -1,0 +1,36 @@
+{
+  "slug": "genius-decon",
+  "name": "Genius Deconstructed",
+  "category": "channel",
+  "niche": "music-theory",
+  "graph_ref": "influence2/data/channels/graph.json",
+  "channel_id": "genius-decon",
+  "slots": {
+    "youtube": {
+      "status": "pending",
+      "fields": {
+        "handle": "@geniusdecon"
+      },
+      "updated_at": "",
+      "receipts": []
+    },
+    "spotify": {
+      "status": "pending",
+      "fields": {},
+      "updated_at": "",
+      "receipts": []
+    },
+    "products": {
+      "status": "pending",
+      "fields": {
+        "skus": [
+          "Theory Guide",
+          "Complete Library",
+          "Stems Circle"
+        ]
+      },
+      "updated_at": "",
+      "receipts": []
+    }
+  }
+}

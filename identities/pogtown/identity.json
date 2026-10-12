@@ -1,0 +1,36 @@
+{
+  "slug": "pogtown",
+  "name": "Pogtown",
+  "category": "channel",
+  "niche": "comedy",
+  "graph_ref": "influence2/data/channels/graph.json",
+  "channel_id": "pogtown",
+  "slots": {
+    "youtube": {
+      "status": "pending",
+      "fields": {
+        "handle": "@pogtown"
+      },
+      "updated_at": "",
+      "receipts": []
+    },
+    "spotify": {
+      "status": "pending",
+      "fields": {},
+      "updated_at": "",
+      "receipts": []
+    },
+    "products": {
+      "status": "pending",
+      "fields": {
+        "skus": [
+          "Theme song",
+          "Tee",
+          "Plush"
+        ]
+      },
+      "updated_at": "",
+      "receipts": []
+    }
+  }
+}
