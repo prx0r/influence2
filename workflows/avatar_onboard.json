@@ -1,0 +1,135 @@
+{
+  "v": 2,
+  "name": "avatar_onboard",
+  "description": "Full avatar onboarding: validate market position → assess content strategy → draft launch merch → produce launch plan. Creator brings a character concept, we return a positioned, validated, monetizable launch plan. Human approves before anything goes live.",
+  "schemas": {
+    "Request": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "handle": { "type": "string" },
+        "persona": { "type": "string" },
+        "gender": { "type": "string" },
+        "age": { "type": "string" },
+        "niche": { "type": "string" },
+        "voice_description": { "type": "string" },
+        "sample_text": { "type": "string" },
+        "video_length_min": { "type": "number" },
+        "uploads_per_week": { "type": "number" },
+        "store": { "type": "string" }
+      },
+      "required": ["name", "niche"],
+      "additionalProperties": true
+    },
+    "MarketCheck": {
+      "type": "object",
+      "properties": {
+        "total": { "type": "number" },
+        "verdict": { "type": "string" }
+      },
+      "required": [],
+      "additionalProperties": true
+    },
+    "LaunchFit": {
+      "type": "object",
+      "properties": {
+        "launch_ready": {
+          "type": "boolean",
+          "description": "Is this avatar ready to launch? Consider: distinctive voice, clear niche with audience demand, viable format, realistic cadence the creator can sustain."
+        },
+        "biggest_risk": {
+          "type": "string",
+          "enum": ["saturated_persona", "unproven_format", "no_audience", "weak_voice", "no_monetization", "compliance"],
+          "description": "What is the single biggest risk to this avatar succeeding?"
+        },
+        "first_move": {
+          "type": "string",
+          "enum": ["content_first", "merch_first", "audience_first", "reposition"],
+          "description": "What should happen first: publish content to build audience, launch merch to test demand, grow audience on existing platform, or reposition the character?"
+        }
+      },
+      "required": ["launch_ready", "biggest_risk", "first_move"],
+      "additionalProperties": false
+    },
+    "LaunchPlan": {
+      "type": "object",
+      "properties": {
+        "avatar": { "type": "string" },
+        "market_score": { "type": "number" },
+        "market_verdict": { "type": "string" },
+        "launch_ready": { "type": "boolean" },
+        "biggest_risk": { "type": "string" },
+        "first_move": { "type": "string" },
+        "pricing": { "type": "object" },
+        "format": { "type": "object" }
+      },
+      "required": ["avatar", "market_verdict", "verdict"],
+      "additionalProperties": true
+    },
+    "Receipt": {
+      "type": "object",
+      "properties": { "ok": { "type": "boolean" } },
+      "required": [],
+      "additionalProperties": true
+    }
+  },
+  "input": { "schemaId": "Request" },
+  "output": { "schemaId": "LaunchPlan", "path": "plan" },
+  "root": {
+    "node": "chain",
+    "steps": [
+      {
+        "node": "call",
+        "label": "market-checks",
+        "via": "tool",
+        "tool": "local.validate_character_market",
+        "args": {
+          "name": "{name}", "handle": "{handle}", "persona": "{persona}",
+          "gender": "{gender}", "age": "{age}", "niche": "{niche}",
+          "video_length_min": "{video_length_min}",
+          "uploads_per_week": "{uploads_per_week}", "products": []
+        },
+        "out": "MarketCheck",
+        "as": "market",
+        "deadline_s": 30
+      },
+      {
+        "node": "judge",
+        "label": "assess-launch",
+        "state": {
+          "avatar": "{name}",
+          "persona": "{persona}",
+          "niche": "{niche}",
+          "voice": "{voice_description}",
+          "sample": "{sample_text}",
+          "market": "{market}"
+        },
+        "out": "LaunchFit",
+        "as": "fit"
+      },
+      {
+        "node": "code",
+        "label": "build-launch-plan",
+        "code": "s => { const m = s.market || {}; const f = s.fit || {}; const ready = !!f.launch_ready && (m.total || 0) >= 50; let verdict = 'NOT_READY'; if (ready && !f.biggest_risk) verdict = 'READY'; else if ((m.total || 0) >= 40) verdict = 'NEEDS_WORK'; return { plan: { avatar: s.name, handle: s.handle || '', niche: s.niche, market_score: m.total || 0, market_verdict: m.verdict || 'UNKNOWN', launch_ready: !!f.launch_ready, biggest_risk: f.biggest_risk || 'unknown', first_move: f.first_move || 'content_first', pricing: { guide: 27, bundle: 47, circle: 9.9 }, format: { length_min: s.video_length_min || 0, per_week: s.uploads_per_week || 0 }, store: s.store || 'pogtown', verdict: verdict, needs_review: true } }; }"
+      },
+      {
+        "node": "call",
+        "label": "log-onboard-receipt",
+        "via": "tool",
+        "tool": "local.log_receipt",
+        "args": { "workflow": "avatar_onboard", "plan": "{plan}" },
+        "out": "Receipt",
+        "as": "receipt",
+        "deadline_s": 10
+      },
+      {
+        "node": "escalate",
+        "label": "human-approves-launch",
+        "when": { "predicate": "field_true", "path": "plan.needs_review" },
+        "kind": "avatar_onboard",
+        "stage": "launch",
+        "summary": "Launch plan for {plan.avatar}: {plan.verdict} (market {plan.market_score}). Risk: {plan.biggest_risk}. First move: {plan.first_move}."
+      }
+    ]
+  }
+}
