@@ -1,4 +1,5 @@
 node_modules/
+.pi/
 .wrangler/
 .dev.vars
 __pycache__/

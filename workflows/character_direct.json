@@ -1,0 +1,238 @@
+{
+  "v": 2,
+  "name": "character_direct",
+  "description": "Manager-to-performer direction. Takes a character + their content analytics, Jev judges what's working, agent writes a direction brief ('make more X because Y'), writes feedback to the graph, human approves before the character sees it.",
+  "schemas": {
+    "Request": {
+      "type": "object",
+      "properties": {
+        "character_id": {
+          "type": "string"
+        },
+        "brand": {
+          "type": "string"
+        },
+        "handle": {
+          "type": "string"
+        },
+        "channel_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "character_id",
+        "brand"
+      ],
+      "additionalProperties": true
+    },
+    "CharacterState": {
+      "type": "object",
+      "properties": {
+        "character_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": [],
+      "additionalProperties": true
+    },
+    "PerformanceVerdict": {
+      "type": "object",
+      "properties": {
+        "has_winners": {
+          "type": "boolean",
+          "description": "Is there a clear pattern in what content is performing best? Answer yes ONLY if specific themes/formats stand out with MEANINGFUL absolute numbers (thousands of views, high engagement). If all content is under 1000 views, answer no \u2014 relative winners among failures are not real winners."
+        },
+        "direction_type": {
+          "type": "string",
+          "enum": [
+            "double_down",
+            "experiment",
+            "pivot",
+            "hold"
+          ],
+          "description": "What should the character do? double_down (clear winners with strong absolute numbers) | experiment (some signal but unclear) | pivot (uniformly poor performance, try something new) | hold (not enough data yet, fewer than 3 videos). If all videos are under 500 views, choose pivot, not hold."
+        }
+      },
+      "required": [
+        "has_winners",
+        "direction_type"
+      ],
+      "additionalProperties": false
+    },
+    "DirectionBrief": {
+      "type": "object",
+      "properties": {
+        "make_more": {
+          "type": "string"
+        },
+        "because": {
+          "type": "string"
+        },
+        "make_less": {
+          "type": "string"
+        },
+        "try_next": {
+          "type": "string"
+        },
+        "modulators": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "make_more",
+        "because",
+        "make_less",
+        "try_next"
+      ],
+      "additionalProperties": false
+    },
+    "Direction": {
+      "type": "object",
+      "properties": {
+        "character_id": {
+          "type": "string"
+        },
+        "strategy": {
+          "type": "string"
+        },
+        "brief": {
+          "type": "object"
+        },
+        "evidence": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "character_id",
+        "strategy",
+        "brief"
+      ],
+      "additionalProperties": true
+    },
+    "Receipt": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        }
+      },
+      "required": [],
+      "additionalProperties": true
+    }
+  },
+  "input": {
+    "schemaId": "Request"
+  },
+  "output": {
+    "schemaId": "Direction",
+    "path": "direction"
+  },
+  "root": {
+    "node": "chain",
+    "steps": [
+      {
+        "node": "call",
+        "label": "load-character",
+        "via": "tool",
+        "tool": "local.character_graph",
+        "args": {
+          "character_id": "{character_id}"
+        },
+        "out": "CharacterState",
+        "as": "character",
+        "deadline_s": 15
+      },
+      {
+        "node": "call",
+        "label": "pull-performance",
+        "via": "tool",
+        "tool": "local.youtube_recent_videos",
+        "args": {
+          "channel_id": "{channel_id}",
+          "max": 10
+        },
+        "out": "CharacterState",
+        "as": "performance",
+        "deadline_s": 60
+      },
+      {
+        "node": "judge",
+        "label": "assess-what-works",
+        "state": {
+          "character": "{character}",
+          "performance": "{performance}"
+        },
+        "out": "PerformanceVerdict",
+        "as": "verdict"
+      },
+      {
+        "node": "agent",
+        "label": "write-direction",
+        "instructions": "You are a comedy character manager. Given the character profile and their content performance data, write a direction brief telling the performer what to make more of and why. Be specific: name the themes, formats, modulators, or angles that are working, cite the evidence (views, retention, ratings), and give one concrete thing to try next. Write in plain manager language, not comedy. Return JSON with make_more, because, make_less, try_next, and modulators (array of 1-3 modulator names to lean into).",
+        "state": {
+          "character": "{character}",
+          "performance": "{performance}",
+          "verdict": "{verdict}"
+        },
+        "tools": [],
+        "out": "DirectionBrief",
+        "as": "brief"
+      },
+      {
+        "node": "code",
+        "label": "build-direction",
+        "code": "s => { const v = s.verdict || {}; const b = s.brief || {}; return { direction: { character_id: s.character_id, brand: s.brand, strategy: v.direction_type || 'hold', brief: { make_more: b.make_more || '', because: b.because || '', make_less: b.make_less || '', try_next: b.try_next || '', modulators: b.modulators || [] }, evidence: { videos_analyzed: ((s.performance && s.performance.videos) || []).length, verdict: v }, needs_review: true } }; }"
+      },
+      {
+        "node": "call",
+        "label": "write-feedback-to-graph",
+        "via": "tool",
+        "tool": "local.character_snapshot_write",
+        "args": {
+          "character_id": "{character_id}",
+          "brand": "{brand}",
+          "handle": "{handle}",
+          "direction": "{direction}",
+          "videos": "{performance.videos}"
+        },
+        "out": "Receipt",
+        "as": "snapshot",
+        "deadline_s": 30
+      },
+      {
+        "node": "call",
+        "label": "log-direction-receipt",
+        "via": "tool",
+        "tool": "local.log_receipt",
+        "args": {
+          "workflow": "character_direct",
+          "brand": "{brand}",
+          "direction": "{direction}"
+        },
+        "out": "Receipt",
+        "as": "receipt",
+        "deadline_s": 10
+      },
+      {
+        "node": "escalate",
+        "label": "human-approves-direction",
+        "when": {
+          "predicate": "field_true",
+          "path": "direction.needs_review"
+        },
+        "kind": "character_direction",
+        "stage": "direction",
+        "summary": "Direction for {character_id}: {direction.strategy}. Make more: {direction.brief.make_more}. Because: {direction.brief.because}."
+      }
+    ]
+  }
+}

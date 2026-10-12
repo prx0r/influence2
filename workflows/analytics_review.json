@@ -1,0 +1,241 @@
+{
+  "v": 2,
+  "name": "analytics_review",
+  "description": "Canonical post/video analytics review for a brand manager. Pulls channel stats + recent videos, computes deltas, Jev judges anomalies, escalates a typed digest for human review.",
+  "schemas": {
+    "Request": {
+      "type": "object",
+      "properties": {
+        "brand": {
+          "type": "string"
+        },
+        "handle": {
+          "type": "string"
+        },
+        "channel_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "brand",
+        "handle"
+      ],
+      "additionalProperties": false
+    },
+    "ChannelStats": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        },
+        "channel_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "subs": {
+          "type": "number"
+        },
+        "views": {
+          "type": "number"
+        },
+        "videos": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "ok"
+      ],
+      "additionalProperties": true
+    },
+    "VideoList": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        },
+        "videos": {
+          "type": "array"
+        }
+      },
+      "required": [
+        "ok"
+      ],
+      "additionalProperties": true
+    },
+    "AnomalyCheck": {
+      "type": "object",
+      "properties": {
+        "is_anomaly": {
+          "type": "boolean",
+          "description": "Is there anything unusual in these channel stats that warrants human attention?"
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "watch",
+            "alert"
+          ],
+          "description": "How urgent is this: normal routine, watch for trends, or alert needing action?"
+        }
+      },
+      "required": [
+        "is_anomaly",
+        "severity"
+      ],
+      "additionalProperties": false
+    },
+    "Receipt": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        }
+      },
+      "required": [],
+      "additionalProperties": true
+    },
+    "Digest": {
+      "type": "object",
+      "properties": {
+        "brand": {
+          "type": "string"
+        },
+        "handle": {
+          "type": "string"
+        },
+        "subs": {
+          "type": "number"
+        },
+        "views": {
+          "type": "number"
+        },
+        "videos": {
+          "type": "number"
+        },
+        "recent": {
+          "type": "array"
+        },
+        "anomaly": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string"
+        },
+        "phoenix_health": {
+          "type": "string"
+        },
+        "phoenix_top": {
+          "type": "array"
+        }
+      },
+      "required": [
+        "brand",
+        "handle",
+        "subs",
+        "views",
+        "videos"
+      ],
+      "additionalProperties": true
+    },
+    "VideoScores": {
+      "type": "object",
+      "properties": {
+        "ranked": {
+          "type": "array"
+        },
+        "health": {
+          "type": "object"
+        }
+      },
+      "required": [],
+      "additionalProperties": true
+    }
+  },
+  "input": {
+    "schemaId": "Request"
+  },
+  "output": {
+    "schemaId": "Digest",
+    "path": "digest"
+  },
+  "root": {
+    "node": "chain",
+    "steps": [
+      {
+        "node": "call",
+        "label": "pull-channel-stats",
+        "via": "tool",
+        "tool": "local.youtube_channel_stats",
+        "args": {
+          "handle": "{handle}",
+          "brand": "{brand}"
+        },
+        "out": "ChannelStats",
+        "as": "stats",
+        "deadline_s": 30
+      },
+      {
+        "node": "call",
+        "label": "pull-recent-videos",
+        "via": "tool",
+        "tool": "local.youtube_recent_videos",
+        "args": {
+          "channel_id": "{channel_id}",
+          "max": 10
+        },
+        "out": "VideoList",
+        "as": "recent_videos",
+        "deadline_s": 60
+      },
+      {
+        "node": "code",
+        "label": "compute-deltas",
+        "code": "s => { const vids = (s.recent_videos && s.recent_videos.videos) || []; const views = vids.map(v => v.views || 0); const avg = views.length ? views.reduce((a,b)=>a+b,0)/views.length : 0; const top = vids.slice().sort((a,b)=>(b.views||0)-(a.views||0))[0] || null; return { digest_base: { brand: s.brand, handle: s.handle, subs: s.stats.subs, views: s.stats.views, videos: s.stats.videos, recent: vids, avg_recent_views: Math.round(avg), top_video: top ? { id: top.id, title: top.title, views: top.views } : null } }; }"
+      },
+      {
+        "node": "call",
+        "label": "score-videos-phoenix",
+        "via": "tool",
+        "tool": "local.score_videos",
+        "args": {
+          "videos": "{digest_base.recent}"
+        },
+        "out": "VideoScores",
+        "as": "scores",
+        "deadline_s": 30
+      },
+      {
+        "node": "judge",
+        "label": "detect-anomaly",
+        "state": {
+          "channel": "{digest_base}",
+          "phoenix": "{scores}"
+        },
+        "out": "AnomalyCheck",
+        "as": "anomaly"
+      },
+      {
+        "node": "code",
+        "label": "build-digest",
+        "code": "s => { const b = s.digest_base || {}; const an = (s.anomaly && s.anomaly.is_anomaly) ? 'yes' : 'no'; const sev = (s.anomaly && s.anomaly.severity) || 'normal'; const sc = s.scores || {}; const hl = sc.health || {}; return { digest: { brand: b.brand || s.brand, handle: b.handle || s.handle, subs: b.subs || 0, views: b.views || 0, videos: b.videos || 0, recent: b.recent || [], avg_recent_views: b.avg_recent_views || 0, top_video: b.top_video || null, anomaly: an, severity: sev, phoenix_health: hl.verdict || 'unknown', phoenix_top: (hl.ranked || []).slice(0,3) } }; }"
+      },
+      {
+        "node": "call",
+        "label": "log-digest-receipt",
+        "via": "tool",
+        "tool": "local.log_receipt",
+        "args": {
+          "workflow": "analytics_review",
+          "brand": "{brand}",
+          "digest": "{digest}"
+        },
+        "out": "Receipt",
+        "as": "receipt",
+        "deadline_s": 10
+      }
+    ]
+  }
+}

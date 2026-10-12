@@ -47,6 +47,9 @@ READONLY_TOOLS = [
     "pack.compile",
     "etsy.listing",
     "task.status",
+    "agentrun.list",
+    "agentrun.runs",
+    "agentrun.validate",
 ]
 
 TOOL_SCHEMAS = [

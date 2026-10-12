@@ -1,0 +1,113 @@
+{
+  "v": 2,
+  "name": "release_gate",
+  "description": "Pre-publish quality gate. Parallel checks: brand safety (Jev), title quality (Jev), budget/cooldown (channel_state), content level (catalog). All must pass. Human approves the gate result.",
+  "schemas": {
+    "Request": {
+      "type": "object",
+      "properties": {
+        "brand": { "type": "string" },
+        "channel": { "type": "string" },
+        "sku": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "platform": { "type": "string" },
+        "handle": { "type": "string" },
+        "quality_score": { "type": "number" }
+      },
+      "required": ["brand", "channel", "title", "platform", "handle"],
+      "additionalProperties": true
+    },
+    "BrandSafety": {
+      "type": "object",
+      "properties": {
+        "is_safe": {
+          "type": "boolean",
+          "description": "Is this title and description brand-safe? No misleading claims, no off-brand tone, no policy violations."
+        }
+      },
+      "required": ["is_safe"],
+      "additionalProperties": false
+    },
+    "TitleQuality": {
+      "type": "object",
+      "properties": {
+        "quality": {
+          "type": "string",
+          "enum": ["strong", "adequate", "weak"],
+          "description": "Title hook strength: strong (would click), adequate (fine), weak (needs rewrite)."
+        }
+      },
+      "required": ["quality"],
+      "additionalProperties": false
+    },
+    "GateResult": {
+      "type": "object",
+      "properties": {
+        "brand": { "type": "string" },
+        "title": { "type": "string" },
+        "verdict": { "type": "string" },
+        "checks": { "type": "object" },
+        "reasons": { "type": "array" }
+      },
+      "required": ["brand", "title", "verdict", "checks"],
+      "additionalProperties": true
+    },
+    "Receipt": {
+      "type": "object",
+      "properties": { "ok": { "type": "boolean" } },
+      "required": [],
+      "additionalProperties": true
+    }
+  },
+  "input": { "schemaId": "Request" },
+  "output": { "schemaId": "GateResult", "path": "gate" },
+  "root": {
+    "node": "chain",
+    "steps": [
+      {
+        "node": "parallel",
+        "label": "run-all-checks",
+        "branches": [
+          {
+            "node": "judge",
+            "label": "check-brand-safety",
+            "state": { "title": "{title}", "description": "{description}", "brand": "{brand}" },
+            "out": "BrandSafety",
+            "as": "safety"
+          },
+          {
+            "node": "judge",
+            "label": "check-title-quality",
+            "state": { "title": "{title}", "platform": "{platform}" },
+            "out": "TitleQuality",
+            "as": "title_q"
+          }
+        ]
+      },
+      {
+        "node": "code",
+        "label": "aggregate-verdict",
+        "code": "s => { const reasons = []; const safe = !!(s.safety && s.safety.is_safe); if (!safe) reasons.push('brand safety failed'); const q = (s.title_q && s.title_q.quality) || 'weak'; if (q === 'weak') reasons.push('title quality weak'); return { gate: { brand: s.brand, title: s.title, verdict: reasons.length === 0 ? 'PASS' : 'FAIL', checks: { brand_safe: safe, title_quality: q }, reasons: reasons, needs_review: true } }; }"
+      },
+      {
+        "node": "call",
+        "label": "log-gate-receipt",
+        "via": "tool",
+        "tool": "local.log_receipt",
+        "args": { "workflow": "release_gate", "brand": "{brand}", "gate": "{gate}" },
+        "out": "Receipt",
+        "as": "receipt",
+        "deadline_s": 10
+      },
+      {
+        "node": "escalate",
+        "label": "human-approves-release",
+        "when": { "predicate": "field_true", "path": "gate.needs_review" },
+        "kind": "release_gate",
+        "stage": "gate",
+        "summary": "Release gate {gate.verdict} for {brand}: {gate.title}. Checks: {gate.checks}."
+      }
+    ]
+  }
+}

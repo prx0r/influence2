@@ -143,6 +143,71 @@ def record_publication(channel: str, account: str, external_id: str,
         db.close()
 
 
+def record_snapshot(item_id: int, window: str = "7d",
+                    views: int = 0, likes: int = 0, shares: int = 0,
+                    comments: int = 0, saves: int = 0, clicks: int = 0,
+                    orders: int = 0, followers_at_post: int = 0,
+                    db_path: str = DB_PATH) -> int:
+    """Write/update a performance snapshot for a content item.
+
+    Upserts on (item_id, window). Computes reach_rate + conversion_rate
+    when followers_at_post > 0. This is the feed for analyze() —
+    without snapshot rows, the learning loop is starved.
+    """
+    db = _db(db_path)
+    try:
+        reach = (views / followers_at_post) if followers_at_post > 0 else None
+        conv = (orders / clicks) if clicks > 0 else None
+        cur = db.execute(
+            "INSERT INTO performance_snapshots (item_id, window, views, likes,"
+            " shares, comments, saves, clicks, orders, followers_at_post,"
+            " reach_rate, conversion_rate)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"
+            " ON CONFLICT(item_id, window) DO UPDATE SET"
+            " views=excluded.views, likes=excluded.likes,"
+            " shares=excluded.shares, comments=excluded.comments,"
+            " saves=excluded.saves, clicks=excluded.clicks,"
+            " orders=excluded.orders,"
+            " followers_at_post=excluded.followers_at_post,"
+            " reach_rate=excluded.reach_rate,"
+            " conversion_rate=excluded.conversion_rate,"
+            " taken_at=datetime('now')",
+            (item_id, window, views, likes, shares, comments, saves,
+             clicks, orders, followers_at_post, reach, conv))
+        db.commit()
+        return cur.lastrowid
+    finally:
+        db.close()
+
+
+def ensure_item(channel: str, account: str, external_id: str,
+                title: str = "", url: str = "",
+                brand_slug: str = "oddhobb", kind: str = "post",
+                db_path: str = DB_PATH) -> int:
+    """Get-or-create a content item by external_id. Returns item_id.
+
+    Lighter than record_publication (no receipt gate) — for analytics
+    backfill where the artifact is already live and observed.
+    Receipt-gated learning still applies: analyze() only uses items
+    with verified snapshots.
+    """
+    db = _db(db_path)
+    try:
+        r = db.execute("SELECT id FROM content_items WHERE external_id=?",
+                       (external_id,)).fetchone()
+        if r:
+            return r[0]
+        cur = db.execute(
+            "INSERT INTO content_items (at,channel,account,brand_slug,kind,"
+            " title,external_id,url,receipt_id)"
+            " VALUES (datetime('now'),?,?,?,?,?,?,?,'backfill')",
+            (channel, account, brand_slug, kind, title, external_id, url))
+        db.commit()
+        return cur.lastrowid
+    finally:
+        db.close()
+
+
 def _vault(key: str) -> str:
     try:
         return subprocess.run(

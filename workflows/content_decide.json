@@ -1,0 +1,291 @@
+{
+  "v": 2,
+  "name": "content_decide",
+  "description": "Decide what content to post next. Takes an analytics digest, Jev judges which themes are winning, agent drafts briefs, Jev sifts for brand fit, picks the winner.",
+  "schemas": {
+    "Request": {
+      "type": "object",
+      "properties": {
+        "brand": {
+          "type": "string"
+        },
+        "handle": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "object"
+        },
+        "existing_titles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "character_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "brand",
+        "handle",
+        "digest",
+        "character_id"
+      ],
+      "additionalProperties": true
+    },
+    "ThemePick": {
+      "type": "object",
+      "properties": {
+        "winning_theme": {
+          "type": "string",
+          "enum": [
+            "double_down",
+            "experiment",
+            "pivot"
+          ],
+          "description": "Should we double down on what's working, experiment with a variant, or pivot to something new?"
+        },
+        "has_enough_data": {
+          "type": "boolean",
+          "description": "Is there enough performance data to make a confident content decision?"
+        }
+      },
+      "required": [
+        "winning_theme",
+        "has_enough_data"
+      ],
+      "additionalProperties": false
+    },
+    "Brief": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "angle": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string"
+        },
+        "why": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "angle",
+        "format",
+        "why"
+      ],
+      "additionalProperties": false
+    },
+    "BriefList": {
+      "type": "object",
+      "properties": {
+        "briefs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "angle": {
+                "type": "string"
+              },
+              "format": {
+                "type": "string"
+              },
+              "why": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "angle",
+              "format",
+              "why"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "briefs"
+      ],
+      "additionalProperties": false
+    },
+    "BrandFit": {
+      "type": "object",
+      "properties": {
+        "on_brand": {
+          "type": "boolean",
+          "description": "Is this brief on-brand for the channel? Answer yes only if the title, angle and format clearly fit the channel identity."
+        },
+        "differentiated": {
+          "type": "boolean",
+          "description": "Is this sufficiently different from existing content and not a duplicate? Answer yes only if it brings a fresh angle."
+        }
+      },
+      "required": [
+        "on_brand",
+        "differentiated"
+      ],
+      "additionalProperties": false
+    },
+    "Decision": {
+      "type": "object",
+      "properties": {
+        "brand": {
+          "type": "string"
+        },
+        "strategy": {
+          "type": "string"
+        },
+        "brief": {
+          "type": "object"
+        },
+        "alternates": {
+          "type": "array"
+        }
+      },
+      "required": [
+        "brand",
+        "strategy",
+        "brief"
+      ],
+      "additionalProperties": true
+    },
+    "Receipt": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        }
+      },
+      "required": [],
+      "additionalProperties": true
+    },
+    "CharacterState": {
+      "type": "object",
+      "properties": {
+        "character_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": [],
+      "additionalProperties": true
+    }
+  },
+  "input": {
+    "schemaId": "Request"
+  },
+  "output": {
+    "schemaId": "Decision",
+    "path": "decision"
+  },
+  "root": {
+    "node": "chain",
+    "steps": [
+      {
+        "node": "judge",
+        "label": "assess-strategy",
+        "state": {
+          "performance": "{digest}",
+          "existing": "{existing_titles}"
+        },
+        "out": "ThemePick",
+        "as": "strategy"
+      },
+      {
+        "node": "call",
+        "label": "load-character-voice",
+        "via": "tool",
+        "tool": "local.character_graph",
+        "args": {
+          "character_id": "{character_id}"
+        },
+        "out": "CharacterState",
+        "as": "voice",
+        "deadline_s": 15
+      },
+      {
+        "node": "agent",
+        "label": "draft-briefs",
+        "instructions": "You are a YouTube content strategist writing for a specific character performer. The character_voice field contains their personality (philosophy, modulators, recent battle scores). Draft exactly 3 video briefs IN THEIR VOICE \u2014 titles, angles, and format choices should reflect how this character thinks and performs. Each brief needs: title (clickable but honest, under 60 chars, in-character), angle (1 sentence on the unique take, filtered through their worldview), format (longform or short), why (1 sentence connecting to the performance data). If character_voice is empty or missing, write as a neutral strategist. Return JSON with a briefs array.",
+        "state": {
+          "performance": "{digest}",
+          "strategy": "{strategy}",
+          "existing_titles": "{existing_titles}",
+          "character_voice": "{voice}"
+        },
+        "tools": [],
+        "out": "BriefList",
+        "as": "candidates"
+      },
+      {
+        "node": "sift",
+        "label": "filter-brand-fit",
+        "itemsPath": "candidates.briefs",
+        "describe": "{item.title} \u2014 {item.angle}",
+        "state": {
+          "existing_titles": "{existing_titles}"
+        },
+        "out": "BrandFit",
+        "as": "filtered",
+        "keep": {
+          "path": "on_brand"
+        }
+      },
+      {
+        "node": "pick",
+        "label": "pick-winner",
+        "itemsPath": "filtered.items",
+        "describe": "{item.title} \u2014 {item.angle}",
+        "instructions": "Pick the single strongest brief: best hook, clearest angle, most likely to perform based on the channel data.",
+        "state": {
+          "performance": "{digest}"
+        },
+        "as": "winner",
+        "allowNone": true
+      },
+      {
+        "node": "code",
+        "label": "build-decision",
+        "code": "s => { const items = (s.filtered && s.filtered.items) || []; const w = s.winner || {}; const wi = (typeof w.index === \"number\") ? w.index : 0; const alts = items.filter((_, i) => i !== wi).map(x => (x && x.title) || x); const allc = ((s.candidates && s.candidates.briefs) || []); const fb = (w.item || allc[0] || null); return { decision: { brand: s.brand, strategy: (s.strategy && s.strategy.winning_theme) || \"experiment\", brief: fb, alternates: alts, needs_review: true, unfiltered_fallback: !w.item } }; }"
+      },
+      {
+        "node": "call",
+        "label": "log-decision-receipt",
+        "via": "tool",
+        "tool": "local.log_receipt",
+        "args": {
+          "workflow": "content_decide",
+          "brand": "{brand}",
+          "decision": "{decision}"
+        },
+        "out": "Receipt",
+        "as": "receipt",
+        "deadline_s": 10
+      },
+      {
+        "node": "escalate",
+        "label": "human-approves-brief",
+        "when": {
+          "predicate": "field_true",
+          "path": "decision.needs_review"
+        },
+        "kind": "content_decision",
+        "stage": "brief",
+        "summary": "Content brief for {brand} ready: {decision.brief.title}. Strategy: {decision.strategy}."
+      }
+    ]
+  }
+}

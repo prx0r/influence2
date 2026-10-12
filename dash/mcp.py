@@ -113,6 +113,12 @@ TOOLS = [
      "inputSchema": {"type": "object", "properties": {"slug": {"type": "string"}}, "required": ["slug"]}},
     {"name": "character.graph", "description": "Character git graph: seed, instances, edges, analytics sync state (read-only, never mutates)",
      "inputSchema": {"type": "object", "properties": {"character_id": {"type": "string"}}, "required": ["character_id"]}},
+    {"name": "agentrun.list", "description": "List available AgentRun workflows with descriptions (read-only)",
+     "inputSchema": {"type": "object", "properties": {}}},
+    {"name": "agentrun.runs", "description": "Recent AgentRun workflow runs from receipts (read-only)",
+     "inputSchema": {"type": "object", "properties": {"workflow": {"type": "string"}, "brand": {"type": "string"}, "limit": {"type": "integer"}}}},
+    {"name": "agentrun.validate", "description": "Validate an AgentRun workflow structure without running it (read-only)",
+     "inputSchema": {"type": "object", "properties": {"workflow": {"type": "string"}}, "required": ["workflow"]}},
 ]
 
 GRAPH = [
@@ -774,6 +780,66 @@ def handle(state: dict, method: str, params: dict) -> dict:
                 return {"result": upload_batch(store, sku, args.get("items"),
                                                dry_run=not live, ctx=ctx,
                                                campaign=args.get("campaign"))}
+        except Exception as e:
+            return {"error": str(e)[:250]}
+    if name in ("agentrun.list", "agentrun.runs", "agentrun.validate"):
+        try:
+            import subprocess as _sp
+            _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if name == "agentrun.list":
+                import glob as _glob
+                out = []
+                for p in sorted(_glob.glob(os.path.join(_root, "workflows", "*.json"))):
+                    try:
+                        with open(p) as _f:
+                            import json as _j
+                            _d = _j.load(_f)
+                        out.append({"name": _d.get("name"), "description": _d.get("description", "")[:200]})
+                    except Exception:
+                        pass
+                return {"result": out}
+            if name == "agentrun.runs":
+                import json as _j2
+                _rp = os.path.join(_root, "dash", "receipts.jsonl")
+                _wf = str(args.get("workflow") or "")
+                _br = str(args.get("brand") or "")
+                try:
+                    _lim = int(args.get("limit") or 10)
+                except Exception:
+                    _lim = 10
+                _rows = []
+                try:
+                    with open(_rp) as _f:
+                        for _line in _f:
+                            _line = _line.strip()
+                            if not _line:
+                                continue
+                            try:
+                                _r = _j2.loads(_line)
+                            except Exception:
+                                continue
+                            if _r.get("kind") != "agentrun":
+                                continue
+                            if _wf and _r.get("workflow") != _wf:
+                                continue
+                            if _br and _r.get("brand") != _br:
+                                continue
+                            _rows.append(_r)
+                except FileNotFoundError:
+                    pass
+                return {"result": _rows[-_lim:]}
+            # agentrun.validate
+            _wf = str(args.get("workflow") or "")
+            if not _wf:
+                return {"error": "workflow required (analytics_review | content_decide | release_gate)"}
+            _r = _sp.run(["node", os.path.join(_root, "workflows", "run.mjs"),
+                          "--validate", _wf],
+                         capture_output=True, text=True, timeout=30)
+            try:
+                import json as _j3
+                return {"result": _j3.loads(_r.stdout.strip().split("\n")[-1])}
+            except Exception:
+                return {"error": (_r.stdout + _r.stderr)[:250]}
         except Exception as e:
             return {"error": str(e)[:250]}
     return {"error": f"unknown tool {name}"}
