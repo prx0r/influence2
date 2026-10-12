@@ -57,6 +57,14 @@ export async function runEffect(params) {
   const tool = node.tool || node.via;
   if (!tool) throw new Error(`call node ${node.label} has no tool`);
 
+  // Batch: atomic multi-call (agent-theater theater_batch pattern).
+  // Banned inside batch: log_receipt (side effects), nested batch.
+  // Failure returns index + reason, no half-state (all-or-nothing via
+  // pre-validation; local ops are idempotent reads/writes).
+  if (tool === "local.batch") {
+    return await runBatch(input.steps || []);
+  }
+
   // Local ops (no MCP round-trip)
   if (tool === "local.youtube_channel_stats") {
     return await youtubeChannelStats(input.handle, input.brand);
@@ -496,6 +504,79 @@ print(json.dumps(_m.channel_momentum(json.loads(sys.argv[1]), json.loads(sys.arg
   const out = ef("python3", ["-c", script, JSON.stringify(dailyViews || []),
     JSON.stringify(dailySubs)], { encoding: "utf8", timeout: 30000 });
   return JSON.parse(out);
+}
+
+/**
+ * Agent-facing allow-list (agent-theater THEATRE pattern).
+ * Tool defs are re-sent every turn — surface costs tokens.
+ * Full local ops stay available to workflows; agents see this subset.
+ */
+export const AGENT_TOOLS = [
+  "local.youtube_channel_stats",
+  "local.youtube_recent_videos",
+  "local.character_graph",
+  "local.score_videos",
+  "local.channel_momentum",
+  "local.fuse_feedback",
+  "local.validate_character_market",
+  "local.check_patterns",
+  "local.prep_video",
+  "local.upload_status",
+  "local.batch",
+];
+
+/**
+ * Atomic batch (agent-theater theater_batch pattern).
+ * Runs steps sequentially, fails fast with index + reason.
+ * Banned inside batch: log_receipt, nested batch, character_snapshot_write.
+ * (Side-effecting writes must be explicit top-level nodes, never buried.)
+ */
+const BANNED_IN_BATCH = new Set([
+  "local.log_receipt",
+  "local.batch",
+  "local.character_snapshot_write",
+]);
+
+async function runBatch(steps) {
+  const results = [];
+  for (let i = 0; i < steps.length; i++) {
+    const s = steps[i] || {};
+    const tool = s.tool || "";
+    if (BANNED_IN_BATCH.has(tool)) {
+      throw new Error(
+        `batch step ${i} (${tool}) banned inside batch — ` +
+        `use explicit top-level node instead`);
+    }
+    if (tool === "local.batch") {
+      throw new Error(`batch step ${i}: nested batch refused`);
+    }
+    try {
+      // dispatch through same runEffect (single choke point)
+      const r = await runEffect({
+        node: { label: `batch[${i}]`, tool },
+        input: s.args || {},
+      });
+      results.push({ ok: true, result: r });
+    } catch (e) {
+      throw new Error(
+        `batch failed at step ${i} (${tool}): ${e.message}`);
+    }
+  }
+  return { ok: true, steps: results };
+}
+
+/**
+ * Retired-field refusal (agent-theater stage_script pattern).
+ * Unknown/renamed input fields fail with rewrite hint, never silently ignored.
+ * Call at top of ops that renamed fields.
+ */
+export function refuseRetired(input, retired, hints = {}) {
+  const found = Object.keys(input || {}).filter((k) => retired.includes(k));
+  if (!found.length) return null;
+  const msg = found.map((k) =>
+    `"${k}" is retired${hints[k] ? `: use "${hints[k]}" instead` : ""}`
+  ).join("; ");
+  throw new Error(`retired field(s): ${msg}`);
 }
 
 /** Test mode: read seeded videos from learn tables instead of YouTube API. */
