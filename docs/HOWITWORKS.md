@@ -321,6 +321,34 @@ python3 scripts/seed_test_data.py --clear
 
 ---
 
+## The feedback harness (symbiotic design)
+
+`pipeline/feedback.py` collects every performer signal into one schema
+(`FeedbackSignal {source, content_id, character_id, score_0_100, metrics}`),
+then fuses them by source weight:
+
+| Source | Weight | State | Cadence |
+|---|---|---|---|
+| arena.votes (Elo+Wilson) | 0.25 | live when app runs | on vote |
+| pogs (laugh events) | 0.20 | live when app runs | realtime |
+| watch.retention | 0.15 | live when app runs | hourly |
+| feedbacks (0-3 + room) | 0.12 | live when app runs | on submit |
+| youtube.stats (Phoenix) | 0.10 | live | hourly |
+| battle.scores | 0.08 | live | on record |
+| performance.dials | 0.05 | live (Ari sets) | on publish |
+| youtube.deep | 0.03 | partial (captions blocked) | weekly |
+| rewards (laugh-rate) | 0.02 | built, no producers | on event |
+| instagram / tiktok / x | 0.00 | stubs (need keys) | — |
+
+Missing sources degrade, never crash. `collect_all()` never raises.
+
+Fusion produces per-content verdicts (hot/growing/steady/cooling/cold) and
+per-character reads (by_modulator, by_operator, by_scenario, direction_hint).
+`workflows/feedback_collect.json` runs this on schedule (read-only + snapshots).
+`workflows/character_direct.json` consumes the fused read for direction.
+
+---
+
 ## File map
 
 ```
@@ -328,7 +356,8 @@ workflows/
   analytics_review.json   post/video analytics → digest
   content_decide.json     digest + voice → brief (in-character)
   release_gate.json       title + description → PASS/FAIL
-  character_direct.json   character + performance → direction
+  character_direct.json   character + fused signals → direction
+  feedback_collect.json   scheduled multi-source collection → fused read
   run.mjs                 runner (--validate, --inspect, live run)
 
 dash/
@@ -341,6 +370,7 @@ pipeline/
   content_score.py        Phoenix-style scorer (X algo weights)
   momentum.py             RSI + EMA + divergence
   learn.py                record_snapshot() + ensure_item()
+  feedback.py             unified harness: 12 sources → fused signals
 
 scripts/
   seed_test_data.py       winners/mixed/losers test scenarios

@@ -79,6 +79,9 @@ export async function runEffect(params) {
   if (tool === "local.channel_momentum") {
     return await channelMomentum(input.daily_views || [], input.daily_subs || null);
   }
+  if (tool === "local.fuse_feedback") {
+    return await fuseFeedback(input);
+  }
 
   // Everything else → dash MCP tools/call
   const res = await fetch(MCP_URL, {
@@ -290,6 +293,23 @@ async function videoStats(videoId, key) {
     likes: parseInt(s.likeCount || "0"),
     comments: parseInt(s.commentCount || "0"),
   };
+}
+
+/** Unified feedback fusion — all sources, one call. */
+async function fuseFeedback(input) {
+  const { execFileSync: ef } = await import("node:child_process");
+  const script = `
+import json, sys
+sys.path.insert(0, "/root/influence2")
+from pipeline import feedback as _fb
+inp = json.loads(sys.argv[1])
+print(json.dumps(_fb.collect_all(
+    inp.get("character_id") or "",
+    inp.get("videos") or [])))
+`;
+  const out = ef("python3", ["-c", script, JSON.stringify(input)],
+    { encoding: "utf8", timeout: 60000 });
+  return JSON.parse(out);
 }
 
 /** Phoenix-style scoring + RSI momentum, via Python pipeline (one process). */

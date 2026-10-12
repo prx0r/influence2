@@ -127,6 +127,22 @@
       },
       "required": [],
       "additionalProperties": true
+    },
+    "FusedFeedback": {
+      "type": "object",
+      "properties": {
+        "active_sources": {
+          "type": "array"
+        },
+        "fused": {
+          "type": "object"
+        },
+        "character": {
+          "type": "object"
+        }
+      },
+      "required": [],
+      "additionalProperties": true
     }
   },
   "input": {
@@ -165,11 +181,27 @@
         "deadline_s": 60
       },
       {
+        "node": "call",
+        "label": "fuse-all-signals",
+        "via": "tool",
+        "tool": "local.fuse_feedback",
+        "args": {
+          "character_id": "{character_id}",
+          "brand": "{brand}",
+          "handle": "{handle}",
+          "videos": "{performance.videos}"
+        },
+        "out": "FusedFeedback",
+        "as": "fused",
+        "deadline_s": 60
+      },
+      {
         "node": "judge",
         "label": "assess-what-works",
         "state": {
           "character": "{character}",
-          "performance": "{performance}"
+          "performance": "{performance}",
+          "fused": "{fused.character}"
         },
         "out": "PerformanceVerdict",
         "as": "verdict"
@@ -181,7 +213,8 @@
         "state": {
           "character": "{character}",
           "performance": "{performance}",
-          "verdict": "{verdict}"
+          "verdict": "{verdict}",
+          "fused_signals": "{fused}"
         },
         "tools": [],
         "out": "DirectionBrief",

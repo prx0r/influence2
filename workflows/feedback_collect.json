@@ -1,0 +1,103 @@
+{
+  "v": 2,
+  "name": "feedback_collect",
+  "description": "Scheduled multi-source feedback collection. Pulls every available signal (battles, arena, POGs, retention, YouTube, performance dials), fuses them, writes snapshots, returns per-character reads. Runs on cron, no human needed (read-only + snapshot writes).",
+  "schemas": {
+    "Request": {
+      "type": "object",
+      "properties": {
+        "character_id": { "type": "string" },
+        "brand": { "type": "string" },
+        "handle": { "type": "string" },
+        "channel_id": { "type": "string" }
+      },
+      "required": ["brand"],
+      "additionalProperties": true
+    },
+    "VideoList": {
+      "type": "object",
+      "properties": {
+        "ok": { "type": "boolean" },
+        "videos": { "type": "array" }
+      },
+      "required": [],
+      "additionalProperties": true
+    },
+    "FusedFeedback": {
+      "type": "object",
+      "properties": {
+        "active_sources": { "type": "array" },
+        "fused": { "type": "object" },
+        "character": { "type": "object" }
+      },
+      "required": [],
+      "additionalProperties": true
+    },
+    "CollectionReport": {
+      "type": "object",
+      "properties": {
+        "brand": { "type": "string" },
+        "character_id": { "type": "string" },
+        "sources": { "type": "array" },
+        "content_count": { "type": "number" },
+        "direction_hint": { "type": "string" },
+        "top_modulators": { "type": "object" }
+      },
+      "required": ["brand", "sources", "content_count", "direction_hint"],
+      "additionalProperties": true
+    },
+    "Receipt": {
+      "type": "object",
+      "properties": { "ok": { "type": "boolean" } },
+      "required": [],
+      "additionalProperties": true
+    }
+  },
+  "input": { "schemaId": "Request" },
+  "output": { "schemaId": "CollectionReport", "path": "report" },
+  "root": {
+    "node": "chain",
+    "steps": [
+      {
+        "node": "call",
+        "label": "pull-videos",
+        "via": "tool",
+        "tool": "local.youtube_recent_videos",
+        "args": { "channel_id": "{channel_id}", "max": 20 },
+        "out": "VideoList",
+        "as": "videos",
+        "deadline_s": 60
+      },
+      {
+        "node": "call",
+        "label": "fuse-all-signals",
+        "via": "tool",
+        "tool": "local.fuse_feedback",
+        "args": {
+          "character_id": "{character_id}",
+          "brand": "{brand}",
+          "handle": "{handle}",
+          "videos": "{videos.videos}"
+        },
+        "out": "FusedFeedback",
+        "as": "fused",
+        "deadline_s": 60
+      },
+      {
+        "node": "code",
+        "label": "build-report",
+        "code": "s => { const f = s.fused || {}; const ch = f.character || {}; const mods = ch.by_modulator || {}; const top3 = {}; const keys = Object.keys(mods).slice(0, 3); for (const k of keys) top3[k] = mods[k]; return { report: { brand: s.brand, character_id: s.character_id || '', sources: f.active_sources || [], content_count: ch.content_count || 0, direction_hint: ch.direction_hint || 'hold', top_modulators: top3 } }; }"
+      },
+      {
+        "node": "call",
+        "label": "log-collection-receipt",
+        "via": "tool",
+        "tool": "local.log_receipt",
+        "args": { "workflow": "feedback_collect", "brand": "{brand}", "report": "{report}" },
+        "out": "Receipt",
+        "as": "receipt",
+        "deadline_s": 10
+      }
+    ]
+  }
+}
