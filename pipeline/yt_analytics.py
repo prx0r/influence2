@@ -183,6 +183,131 @@ def download_transcript(video_id, work_dir):
     return None
 
 
+def try_innertube(video_id, timeout=20):
+    """Fetch transcript via YouTube InnerTube API (ANDROID client).
+
+    Pattern from neurelectra-oss/youtube-captions + rapha30/yt-youtube-transcript:
+    ANDROID/IOS InnerTube clients get signed caption URLs that work without
+    auth tokens, on a different path than yt-dlp/transcript-API. When those
+    are IP-blocked, InnerTube often still works (separate egress reputation).
+
+    The API key below is the public YouTube Android client key (same in every
+    app install, not a secret). No auth, no cookies, no account needed.
+    Returns (text, duration) or (None, None).
+    """
+    import urllib.request
+
+    # Public Android client key — identical in every YouTube app install.
+    ANDROID_KEY = "AIzaSyA8eiZmM1FaDVjRy-df2OKiwaqSkS6Eo4"
+    PLAYER_URL = ("https://www.youtube.com/youtubei/v1/player?key="
+                  + ANDROID_KEY)
+
+    def _post(payload):
+        data = json.dumps(payload).encode()
+        req = urllib.request.Request(
+            PLAYER_URL, data=data,
+            headers={"Content-Type": "application/json",
+                     "User-Agent": "com.google.android.youtube/19.09.37 "
+                                   "(Linux; U; Android 13) gzip"},
+            method="POST")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read())
+
+    # cascade: ANDROID → IOS → WEB (different client reputations)
+    clients = [
+        {"clientName": "ANDROID", "clientVersion": "20.10.38",
+         "androidSdkVersion": 34,
+         "hl": "en", "gl": "US"},
+        {"clientName": "IOS", "clientVersion": "20.10.3",
+         "deviceModel": "iPhone16,2",
+         "hl": "en", "gl": "US"},
+        {"clientName": "WEB", "clientVersion": "2.20250101.00",
+         "hl": "en", "gl": "US"},
+    ]
+    for client in clients:
+        try:
+            player = _post({"videoId": video_id, "context": {"client": client}})
+        except Exception:
+            continue
+        try:
+            tracks = (player.get("captions", {})
+                      .get("playerCaptionsTracklistRenderer", {})
+                      .get("captionTracks", []))
+        except (AttributeError, TypeError):
+            tracks = []
+        # prefer manual English, then auto-generated English, then any English
+        def _rank(t):
+            lang = (t.get("languageCode") or "")
+            kind = (t.get("kind") or "")
+            if lang == "en" and kind != "asr":
+                return 0
+            if lang.startswith("en"):
+                return 1
+            return 2
+        for track in sorted(tracks, key=_rank):
+            url = track.get("baseUrl")
+            if not url:
+                continue
+            try:
+                req = urllib.request.Request(
+                    url, headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(req, timeout=timeout) as resp:
+                    xml = resp.read().decode("utf-8", errors="replace")
+                text, dur = parse_caption_xml(xml)
+                if text and len(text.split()) >= 20:
+                    return text, dur
+            except Exception:
+                continue
+    return None, None
+
+
+def parse_caption_xml(xml):
+    """Parse InnerTube caption XML (srv3/ttml/timedtext) into text + duration.
+
+    Handles both <text start dur> (srv1) and <p t d> (timedtext format 3).
+    """
+    # timedtext format 3: <p t="1360" d="1680">words</p> (t/d in milliseconds)
+    matches = re.findall(
+        r'<p[^>]*\bt="([^"]*)"[^>]*\bd="([^"]*)"[^>]*>(.*?)</p>',
+        xml, re.DOTALL)
+    if matches:
+        texts, max_end = [], 0.0
+        for t_s, d_s, txt in matches:
+            clean = re.sub(r'<[^>]+>', '', txt)
+            texts.append(unescape(clean).replace("\n", " "))
+            try:
+                end = (float(t_s) + float(d_s)) / 1000.0
+                max_end = max(max_end, end)
+            except ValueError:
+                pass
+        text = re.sub(r'\s+', ' ', " ".join(texts)).strip()
+        if len(text.split()) >= 20:
+            return text, max_end if max_end > 0 else None
+        return None, None
+    # srv1: <text start="1.2" dur="3.4">words</text> (seconds)
+    matches = re.findall(
+        r'<text[^>]*start="([^"]*)"[^>]*dur="([^"]*)"[^>]*>(.*?)</text>',
+        xml, re.DOTALL)
+    if not matches:
+        # fallback: strip all tags, keep text
+        stripped = re.sub(r'<[^>]+>', ' ', xml)
+        text = re.sub(r'\s+', ' ', unescape(stripped)).strip()
+        return (text, None) if len(text.split()) >= 20 else (None, None)
+    texts, max_end = [], 0.0
+    for start_s, dur_s, txt in matches:
+        clean = re.sub(r'<[^>]+>', '', txt)
+        texts.append(unescape(clean).replace("\n", " "))
+        try:
+            end = float(start_s) + float(dur_s)
+            max_end = max(max_end, end)
+        except ValueError:
+            pass
+    text = re.sub(r'\s+', ' ', " ".join(texts)).strip()
+    if len(text.split()) < 20:
+        return None, None
+    return text, max_end if max_end > 0 else None
+
+
 def try_transcript_api(video_id):
     """Try youtube_transcript_api first (faster, no file needed).
 
@@ -514,6 +639,15 @@ def analyze_channel(channel: str, limit: int = 10, sleep: float = 0.5,
             text = t
             if api_dur and api_dur > 0:
                 duration = api_dur
+
+        if not text:
+            # InnerTube fallback: different egress path than yt-dlp/API.
+            # Often works when both are IP-blocked (separate reputation).
+            t, it_dur = try_innertube(vid_id)
+            if t:
+                text = t
+                if it_dur and it_dur > 0:
+                    duration = it_dur
 
         if not text:
             sub_path = download_transcript(vid_id, wd)
