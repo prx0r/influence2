@@ -1,11 +1,20 @@
-# influence — autonomous brand manager runtime
+# influence2 — autonomous brand + character manager
 
-> **What this repo is now:** the consequence-control runtime for AI brand
-> operators. Agents do unlimited cognitive work; anything consequential
-> (publish, spend, send, mutate, order) passes through `pipeline/runtime.py`
-> with qprivately grants, human review, and canonical receipts.
+> **What this repo is:** the manager layer for AI avatar YouTube channels
+> and comedy characters. AgentRun workflows orchestrate analytics review,
+> content decisions, release gates, and performer direction — all gated
+> behind human approval. Characters perform, audiences vote, manager directs.
 >
-> **Canonical runtime:** `pipeline/` · `dash/` · `qp/` + `law/acom` (pinned).
+> **Start here:** `docs/HOWITWORKS.md` (architecture) ·
+> `docs/CHANNEL-PLANS.md` (6 channels) ·
+> `docs/SESSION-2026-10-12.md` (latest session) ·
+> `docs/agentrun/OPERATIONS.md` (13 operations mapped).
+>
+> **Run a workflow:** `node --env-file=.env workflows/run.mjs <name> '<json>'`
+> **Validate:** `node workflows/run.mjs --validate <name>`
+> **Tests:** `python3 -m pytest pipeline/ -q` (62 green)
+>
+> **Canonical runtime:** `pipeline/` · `dash/` · `workflows/` · `qp/` + `law/acom` (pinned).
 > **Upstream/legacy (read-only, do not add brand logic):** `cmail/`,
 > `domainnamechecker/`, `stevejobless/`.
 > **Product truth lives elsewhere:** `pogpet/catalog/packs` (packs),

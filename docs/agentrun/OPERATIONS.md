@@ -260,6 +260,27 @@ loop (weekly):
 
 ---
 
+## Built workflows (live, in `workflows/`)
+
+| Workflow | Status | What it does |
+|---|---|---|
+| `analytics_review` | ✅ live | Channel stats → Phoenix scores → Jev anomaly → digest (auto) |
+| `content_decide` | ✅ live | Digest + character voice → 3 briefs → Jev sift → pick → human approves |
+| `release_gate` | ✅ live | Brand safety + title quality + farm patterns → PASS/FAIL → human approves |
+| `character_direct` | ✅ live | Character + fused signals → "make more X because Y" → graph → human approves |
+| `character_validate` | ✅ live | Market checks + Jev voice/compliance → READY/NEEDS_WORK → human reviews |
+| `character_merch` | ✅ live | Jev fit → 3 SKUs (Earl pricing) → OddHobb/Prodigi → human approves |
+| `character_product` | ✅ live | Asset catalog → worth-selling judge → product plan → human approves |
+| `avatar_onboard` | ✅ live | Market + launch fit → launch plan → human approves |
+| `feedback_collect` | ✅ live | Multi-source fuse (cron, no human needed) |
+| `archetype_mine` | ✅ live | Mine patterns → Jev validates → priors update |
+| `intel_refresh` | ✅ live | Re-pull export → re-mine → re-validate (scheduled) |
+
+Run: `node --env-file=.env workflows/run.mjs <name> '<json>'`
+Validate: `node workflows/run.mjs --validate <name>`
+
+---
+
 ## What AgentRun does NOT replace
 
 | System | Why it stays |
