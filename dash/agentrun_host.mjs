@@ -85,6 +85,9 @@ export async function runEffect(params) {
   if (tool === "local.validate_character_market") {
     return await validateCharacterMarket(input);
   }
+  if (tool === "local.catalog_character_assets") {
+    return await catalogCharacterAssets(input);
+  }
 
   // Everything else → dash MCP tools/call
   const res = await fetch(MCP_URL, {
@@ -296,6 +299,24 @@ async function videoStats(videoId, key) {
     likes: parseInt(s.likeCount || "0"),
     comments: parseInt(s.commentCount || "0"),
   };
+}
+
+/** Character asset catalog + product proposals for commerce. */
+async function catalogCharacterAssets(input) {
+  const { execFileSync: ef } = await import("node:child_process");
+  const script = `
+import json, sys
+sys.path.insert(0, "/root/influence2")
+from pipeline import character_commerce as _cc
+inp = json.loads(sys.argv[1])
+print(json.dumps(_cc.propose_products(
+    inp.get("character_id", ""),
+    inp.get("character_name", ""),
+    int(inp.get("max_products") or 5))))
+`;
+  const out = ef("python3", ["-c", script, JSON.stringify(input)],
+    { encoding: "utf8", timeout: 30000 });
+  return JSON.parse(out);
 }
 
 /** Character market validation — AvatarChannels-informed code checks. */

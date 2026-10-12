@@ -1,0 +1,119 @@
+{
+  "v": 2,
+  "name": "character_product",
+  "description": "Character asset → OddHobb product: catalog sellable assets (portraits, catchphrases, audio, lore), propose Earl-norm products, draft Etsy listing, check Prodigi fulfillment, human approves each SKU. The commerce loop: characters create, fans buy the artifact.",
+  "schemas": {
+    "Request": {
+      "type": "object",
+      "properties": {
+        "character_id": { "type": "string" },
+        "character_name": { "type": "string" },
+        "brand": { "type": "string" },
+        "store": { "type": "string" },
+        "max_products": { "type": "number" }
+      },
+      "required": ["character_id", "brand"],
+      "additionalProperties": true
+    },
+    "AssetCatalog": {
+      "type": "object",
+      "properties": {
+        "character_id": { "type": "string" },
+        "counts": { "type": "object" },
+        "total": { "type": "number" }
+      },
+      "required": [],
+      "additionalProperties": true
+    },
+    "ProductProposals": {
+      "type": "object",
+      "properties": {
+        "character_id": { "type": "string" },
+        "products": { "type": "array" },
+        "fulfillment": { "type": "string" }
+      },
+      "required": [],
+      "additionalProperties": true
+    },
+    "ProductJudgment": {
+      "type": "object",
+      "properties": {
+        "worth_selling": {
+          "type": "boolean",
+          "description": "Are these products worth listing? Do they have genuine fan appeal (not just slapping a name on generic merch)? Would a fan of this character actually buy this?"
+        },
+        "best_product": {
+          "type": "string",
+          "enum": ["poster", "tee", "mug", "sticker", "album", "zine", "card"],
+          "description": "Which single product type is strongest for this character?"
+        }
+      },
+      "required": ["worth_selling", "best_product"],
+      "additionalProperties": false
+    },
+    "ProductPlan": {
+      "type": "object",
+      "properties": {
+        "character_id": { "type": "string" },
+        "store": { "type": "string" },
+        "products": { "type": "array" },
+        "fulfillment": { "type": "string" }
+      },
+      "required": ["character_id", "store", "products"],
+      "additionalProperties": true
+    },
+    "Receipt": {
+      "type": "object",
+      "properties": { "ok": { "type": "boolean" } },
+      "required": [],
+      "additionalProperties": true
+    }
+  },
+  "input": { "schemaId": "Request" },
+  "output": { "schemaId": "ProductPlan", "path": "plan" },
+  "root": {
+    "node": "chain",
+    "steps": [
+      {
+        "node": "call",
+        "label": "catalog-assets",
+        "via": "tool",
+        "tool": "local.catalog_character_assets",
+        "args": { "character_id": "{character_id}", "character_name": "{character_name}" },
+        "out": "ProductProposals",
+        "as": "proposals",
+        "deadline_s": 30
+      },
+      {
+        "node": "judge",
+        "label": "judge-worth-selling",
+        "state": { "character": "{character_id}", "products": "{proposals}" },
+        "out": "ProductJudgment",
+        "as": "judgment"
+      },
+      {
+        "node": "code",
+        "label": "build-product-plan",
+        "code": "s => { const ps = ((s.proposals && s.proposals.products) || []).slice(0, 5); const j = s.judgment || {}; return { plan: { character_id: s.character_id, brand: s.brand, store: s.store || 'pogtown', products: ps, fulfillment: 'oddhobb-etsy + prodigi-print', worth_selling: !!j.worth_selling, best: j.best_product || 'poster', needs_review: true } }; }"
+      },
+      {
+        "node": "call",
+        "label": "log-product-receipt",
+        "via": "tool",
+        "tool": "local.log_receipt",
+        "args": { "workflow": "character_product", "brand": "{brand}", "plan": "{plan}" },
+        "out": "Receipt",
+        "as": "receipt",
+        "deadline_s": 10
+      },
+      {
+        "node": "escalate",
+        "label": "human-approves-products",
+        "when": { "predicate": "field_true", "path": "plan.needs_review" },
+        "kind": "character_product",
+        "stage": "product",
+        "summary": "Product plan for {plan.character_id}: {plan.products.length} SKUs via {plan.fulfillment} to {plan.store} store."
+      }
+    ]
+  }
+}
